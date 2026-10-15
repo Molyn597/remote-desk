@@ -48,6 +48,12 @@
                 <span data-i18n="nav.permissions"></span>
               </button>
             </li>
+            <li>
+              <button class="nav-item" data-nav="help">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.6-2.4 2.1-2.4 3.6M12 17h.01" /></svg></span>
+                <span data-i18n="nav.help"></span>
+              </button>
+            </li>
           </ul>
         </div>
 
@@ -251,6 +257,14 @@
           <div class="form-actions">
             <button class="primary-button" id="relaunch" data-i18n="perm.restart"></button>
           </div>
+        </section>
+
+        <!-- Help -->
+        <section class="page" id="page-help" hidden>
+          <div class="page-header">
+            <h1 data-i18n="nav.help"></h1>
+          </div>
+          <div class="help" id="help-content"></div>
         </section>
       </main>
     </div>

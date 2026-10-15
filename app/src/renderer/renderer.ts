@@ -1,4 +1,5 @@
 import type { Api, PermissionKind } from '../preload/api';
+import { renderHelp } from './help';
 import { Host } from './host';
 import { currentLanguage, setLanguage, t, type MessageKey } from './i18n';
 import { isOnline } from './network';
@@ -17,7 +18,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const PASSWORD_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
 const STATUS_POLL_MS = 2000;
 
-type Page = 'home' | 'settings' | 'permissions';
+type Page = 'home' | 'settings' | 'permissions' | 'help';
 
 const config = await window.api.getConfig();
 const isMac = config.platform === 'darwin';
@@ -40,12 +41,13 @@ const formatId = (id: string) => id.replace(/(\d{3})(?=\d)/g, '$1 ');
 // Navigation
 
 function showPage(page: Page) {
-  for (const p of ['home', 'settings', 'permissions'] as const) $(`page-${p}`).hidden = p !== page;
+  for (const p of ['home', 'settings', 'permissions', 'help'] as const) $(`page-${p}`).hidden = p !== page;
   for (const item of document.querySelectorAll<HTMLElement>('.nav-item')) {
     item.classList.toggle('active', item.dataset.nav === page);
   }
   if (page === 'settings') fillSettingsForm();
   if (page === 'permissions') void refreshPermissions();
+  if (page === 'help') renderHelp($('help-content'));
 }
 
 for (const el of document.querySelectorAll<HTMLElement>('[data-nav]')) {
@@ -304,6 +306,7 @@ function applyLanguage() {
   setLanguage(settings.language, config.locale);
   renderRecent();
   renderNetwork();
+  renderHelp($('help-content'));
   refreshStatus();
 }
 
