@@ -5,6 +5,7 @@ export interface Settings {
   language: Language;
   theme: Theme;
   displayName: string;
+  lastSeenVersion: string; // shows "What's new" once after an update
   serverUrl: string; // empty = public Nostr relays
   turnUrl: string;
   turnUsername: string;
@@ -25,6 +26,7 @@ const DEFAULTS: Settings = {
   language: 'auto',
   theme: 'auto',
   displayName: '',
+  lastSeenVersion: '',
   serverUrl: '',
   turnUrl: '',
   turnUsername: '',

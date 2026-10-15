@@ -22,10 +22,19 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match app version $VERSION"
             exit 1
           fi
+      - name: Take release notes from CHANGELOG.md
+        run: |
+          node -e '
+            const fs = require("fs");
+            const version = process.argv[1];
+            const section = fs.readFileSync("CHANGELOG.md", "utf8").split(/^## /m).find((s) => s.startsWith("[" + version + "]"));
+            if (!section) { console.error("CHANGELOG.md has no entry for " + version); process.exit(1); }
+            fs.writeFileSync("notes.md", section.split("\n").slice(1).join("\n").trim() + "\n");
+          ' "${GITHUB_REF_NAME#v}"
       - name: Create draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" --draft --generate-notes --title "Remote Desk $GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" --draft --notes-file notes.md --title "Remote Desk $GITHUB_REF_NAME"
 
   build:
     needs: draft

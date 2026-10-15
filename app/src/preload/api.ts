@@ -49,6 +49,10 @@ export interface Api {
   // Session panel window.
   onSessionPanelInfo(handler: (info: SessionPanelInfo) => void): void;
   sendSessionAction(action: SessionAction): void;
+  // What's new and feedback.
+  getChangelog(): Promise<string>;
+  getRemoteChangelog(version: string): Promise<string | null>;
+  openFeedback(kind: 'bug' | 'idea'): void;
   // Updates.
   getUpdateState(): Promise<UpdateState>;
   onUpdateState(handler: (state: UpdateState) => void): void;

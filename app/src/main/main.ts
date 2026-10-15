@@ -1,8 +1,10 @@
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   app,
   BrowserWindow,
   clipboard,
+  net,
   desktopCapturer,
   dialog,
   ipcMain,
@@ -22,6 +24,7 @@ import type {
   SessionState,
 } from '../preload/api';
 import { handleInput, resetInput, watchLocalMouse } from './input';
+import { rawFileUrl, repoUrl } from './repo';
 import { checkForUpdates, getUpdateState, installUpdate, openDownloadPage, setupUpdater } from './updater';
 
 const isMac = process.platform === 'darwin';
@@ -38,6 +41,31 @@ let panel: BrowserWindow | undefined;
 let sessionState: SessionState = 'idle';
 
 const PANEL_SIZE = { width: 740, height: 64 };
+const MAX_CHANGELOG_BYTES = 200_000;
+const OS_NAMES: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
+
+// Changelog of a published version, so "What's new" can show it before updating.
+async function fetchChangelog(version: unknown): Promise<string | null> {
+  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version)) return null;
+  const url = rawFileUrl(`v${version}`, 'CHANGELOG.md');
+  if (!url) return null;
+  try {
+    const res = await net.fetch(url);
+    if (!res.ok) return null;
+    const text = await res.text();
+    return text.length <= MAX_CHANGELOG_BYTES ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+function openFeedback(kind: unknown) {
+  const template = kind === 'bug' ? 'bug_report.yml' : kind === 'idea' ? 'feature_request.yml' : null;
+  const os = `${OS_NAMES[process.platform] ?? process.platform} ${process.getSystemVersion()} (${process.arch})`;
+  const query = new URLSearchParams({ template: template ?? '', version: app.getVersion(), os });
+  const url = template && repoUrl(`/issues/new?${query}`);
+  if (url) void shell.openExternal(url);
+}
 
 // While viewing a remote screen, shortcuts like Cmd+C or Cmd+W must reach the
 // remote computer, so the menu keeps only the app submenu (Quit).
@@ -206,6 +234,11 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('changelog', () => readFile(path.join(__dirname, 'CHANGELOG.md'), 'utf8').catch(() => ''));
+  ipcMain.handle('changelog-remote', (_e, version) => fetchChangelog(version));
+  ipcMain.on('open-feedback', (e, kind) => {
+    if (fromMainWindow(e)) openFeedback(kind);
+  });
   ipcMain.handle('update-state', () => getUpdateState());
   ipcMain.on('update-check', (e) => {
     if (fromMainWindow(e)) void checkForUpdates();

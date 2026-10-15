@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { app, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import type { UpdateState } from '../preload/api';
+import { repoUrl } from './repo';
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
@@ -16,18 +15,6 @@ let notify: (state: UpdateState) => void = () => {};
 function setState(next: Partial<UpdateState>) {
   state = { ...state, ...next };
   notify(state);
-}
-
-// Written by electron-builder into the packaged app from the "publish" config.
-function releasesUrl(): string | undefined {
-  try {
-    const yml = readFileSync(path.join(process.resourcesPath, 'app-update.yml'), 'utf8');
-    const owner = /^owner:\s*(\S+)/m.exec(yml)?.[1];
-    const repo = /^repo:\s*(\S+)/m.exec(yml)?.[1];
-    if (owner && repo && /^[\w.-]+$/.test(owner + repo)) return `https://github.com/${owner}/${repo}/releases/latest`;
-  } catch {
-    // not packaged or no publish config
-  }
 }
 
 export function getUpdateState() {
@@ -48,7 +35,7 @@ export function installUpdate() {
 }
 
 export function openDownloadPage() {
-  const url = releasesUrl();
+  const url = repoUrl('/releases/latest');
   if (url) void shell.openExternal(url);
 }
 

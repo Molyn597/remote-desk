@@ -1183,3 +1183,107 @@ h3 {
   font-weight: 500;
   white-space: nowrap;
 }
+
+/* What's new */
+
+.nav-badge {
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.feedback-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.feedback-actions .ghost-button {
+  height: 52px;
+}
+
+.changelog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.release {
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  background: var(--pill);
+}
+
+.release-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.release-head h3 {
+  font-size: 20px;
+}
+
+.release-head span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.release h4 {
+  margin: 12px 0 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.release ul {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(20 21 22 / 35%);
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  width: min(560px, 100%);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 25%);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-head h2 {
+  font-size: 24px;
+}
+
+.modal-body {
+  overflow-y: auto;
+}
+
+.modal .form-actions {
+  margin-top: 0;
+}

@@ -86,21 +86,23 @@ Run a second instance on the same machine with its own profile:
 
 ## Releasing a new version
 
-1. Set the new version (here `0.2.0`) and commit it:
+1. Describe the changes under a new `## [0.2.0] - date` heading in [CHANGELOG.md](CHANGELOG.md).
+   The app shows this text in **What's new** and it becomes the release notes.
+2. Set the new version (here `0.2.0`) and commit it:
 
    ```bash
    npm -w app version 0.2.0 --no-git-tag-version
    git commit -am "Release 0.2.0"
    ```
 
-2. Tag and push:
+3. Tag and push:
 
    ```bash
    git tag v0.2.0
    git push origin main v0.2.0
    ```
 
-GitHub Actions then checks that the tag matches the app version, builds the Windows installer and
+GitHub Actions then checks that the tag matches the app version and has a changelog entry, builds the Windows installer and
 the macOS DMG/ZIP, uploads them to a draft release and publishes it when all builds succeed.
 
 Installed apps check for updates at start-up and every 4 hours:
@@ -108,6 +110,11 @@ Installed apps check for updates at start-up and every 4 hours:
 - **Windows** downloads the update in the background and offers **Restart and update**.
 - **macOS** shows **A new version is available** with a link to the release. Fully automatic
   installs on macOS need an Apple Developer ID signature (see roadmap).
+
+## Feedback
+
+Found a bug or have an idea? Use **What's new → Report a bug / Suggest an improvement** in the app,
+or open an [issue](../../issues/new/choose). Security problems: see [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 

@@ -49,6 +49,13 @@
               </button>
             </li>
             <li>
+              <button class="nav-item" data-nav="news">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.2L19 10l-5.1 1.8L12 17l-1.9-5.2L5 10l5.1-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z" /></svg></span>
+                <span data-i18n="nav.news"></span>
+                <span class="nav-badge" id="news-badge" hidden></span>
+              </button>
+            </li>
+            <li>
               <button class="nav-item" data-nav="help">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.6-2.4 2.1-2.4 3.6M12 17h.01" /></svg></span>
                 <span data-i18n="nav.help"></span>
@@ -234,12 +241,6 @@
               </div>
             </div>
 
-            <div class="settings-group">
-              <h3 class="section-title" data-i18n="update.title"></h3>
-              <p class="hint" id="update-status"></p>
-              <button type="button" class="small-button" id="update-check" data-i18n="update.check"></button>
-            </div>
-
             <div class="form-actions">
               <button type="submit" class="primary-button" data-i18n="settings.save"></button>
               <span class="form-status" id="settings-status" role="status"></span>
@@ -276,6 +277,56 @@
           </div>
         </section>
 
+        <!-- What's new -->
+        <section class="page" id="page-news" hidden>
+          <div class="page-header">
+            <h1 data-i18n="nav.news"></h1>
+          </div>
+          <div class="cards">
+            <article class="card">
+              <div class="card-head">
+                <h2 data-i18n="update.title"></h2>
+              </div>
+              <div class="value-pill">
+                <div class="value-main">
+                  <span class="big-value" id="news-version"></span>
+                  <span class="value-label" data-i18n="news.installed"></span>
+                </div>
+              </div>
+              <p class="card-hint" id="update-status"></p>
+              <div class="form-actions">
+                <button class="dark-button" id="update-primary" hidden>
+                  <span id="update-primary-label"></span>
+                  <span class="arrow-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg></span>
+                </button>
+                <button class="ghost-button" id="update-check" data-i18n="update.check"></button>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <h2 data-i18n="feedback.title"></h2>
+              </div>
+              <p class="card-hint" data-i18n="feedback.text"></p>
+              <div class="feedback-actions">
+                <button class="dark-button" id="feedback-bug">
+                  <span data-i18n="feedback.bug"></span>
+                  <span class="arrow-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg></span>
+                </button>
+                <button class="ghost-button" id="feedback-idea" data-i18n="feedback.idea"></button>
+              </div>
+              <p class="card-hint" data-i18n="feedback.note"></p>
+            </article>
+          </div>
+
+          <div class="panel recent-panel">
+            <div class="section-head">
+              <h3 data-i18n="news.history"></h3>
+            </div>
+            <div class="changelog" id="changelog"></div>
+          </div>
+        </section>
+
         <!-- Help -->
         <section class="page" id="page-help" hidden>
           <div class="page-header">
@@ -284,6 +335,24 @@
           <div class="help" id="help-content"></div>
         </section>
       </main>
+    </div>
+
+    <div class="modal-backdrop" id="whats-new" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
+        <div class="modal-head">
+          <h2 id="whats-new-title"></h2>
+          <button class="circle-btn" id="whats-new-close" data-i18n-title="news.close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div class="modal-body" id="whats-new-body"></div>
+        <div class="form-actions">
+          <button class="dark-button" id="whats-new-action">
+            <span id="whats-new-action-label"></span>
+            <span class="arrow-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg></span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="host-banner" id="host-banner" hidden>

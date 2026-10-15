@@ -1,0 +1,45 @@
+name: Bug report
+description: Something doesn't work as expected. You can write in English or Czech.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please don't include IDs, passwords or screenshots with personal data.
+        Security problems belong in a private report: Security tab → Report a vulnerability.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Connect from Windows to Mac
+        2. Click …
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11 / macOS 15
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Which side had the problem?
+      options:
+        - The computer being controlled
+        - The computer controlling the other one
+        - Both / not sure

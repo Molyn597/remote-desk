@@ -31,4 +31,5 @@ await Promise.all([
   ...['index.html', 'styles.css', 'session.html', 'session.css'].map((file) =>
     cp(`src/renderer/${file}`, `dist/${file}`),
   ),
+  cp('../CHANGELOG.md', 'dist/CHANGELOG.md'),
 ]);

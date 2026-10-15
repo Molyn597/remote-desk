@@ -1,0 +1,26 @@
+name: Suggest an improvement
+description: An idea for a new feature or a better way to do something. You can write in English or Czech.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Describe the improvement and what it would help you with.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: How you use Remote Desk today, examples from other apps, sketches…
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: 0.1.0
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11 / macOS 15

@@ -1,4 +1,5 @@
 import type { Api, PermissionKind, UpdateState } from '../preload/api';
+import { parseChangelog, renderRelease, type Release } from './changelog';
 import { renderHelp } from './help';
 import { Host, type HostSession, type Visitor } from './host';
 import { currentLanguage, setLanguage, t, type MessageKey } from './i18n';
@@ -18,7 +19,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const PASSWORD_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
 const STATUS_POLL_MS = 2000;
 
-type Page = 'home' | 'settings' | 'permissions' | 'help';
+type Page = 'home' | 'settings' | 'permissions' | 'news' | 'help';
 
 const config = await window.api.getConfig();
 const isMac = config.platform === 'darwin';
@@ -41,7 +42,7 @@ const formatId = (id: string) => id.replace(/(\d{3})(?=\d)/g, '$1 ');
 // Navigation
 
 function showPage(page: Page) {
-  for (const p of ['home', 'settings', 'permissions', 'help'] as const) $(`page-${p}`).hidden = p !== page;
+  for (const p of ['home', 'settings', 'permissions', 'news', 'help'] as const) $(`page-${p}`).hidden = p !== page;
   for (const item of document.querySelectorAll<HTMLElement>('.nav-item')) {
     item.classList.toggle('active', item.dataset.nav === page);
   }
@@ -336,36 +337,104 @@ function applyLanguage() {
   renderRecent();
   renderNetwork();
   renderHelp($('help-content'));
+  renderChangelog();
   renderUpdate();
   refreshStatus();
 }
 
-// Updates
+// Updates, what's new and feedback
 
 let updateState: UpdateState = await window.api.getUpdateState();
+const releases: Release[] = parseChangelog(await window.api.getChangelog());
+const updateOffered = () =>
+  updateState.status === 'ready' || (updateState.status === 'available' && !updateState.canInstall);
+
+function updateActionLabel() {
+  return t(updateState.status === 'ready' ? 'update.install' : 'update.download');
+}
+
+function runUpdateAction() {
+  if (updateState.status === 'ready') window.api.installUpdate();
+  else window.api.openDownloadPage();
+}
 
 function renderUpdate() {
-  const { status, version = '', canInstall } = updateState;
+  const { status, version = '' } = updateState;
   const vars = { version, current: config.version };
+  $('news-version').textContent = config.version;
   $('update-status').textContent = t(`update.${status}` as MessageKey, vars);
   $('update-check').hidden = status === 'unsupported';
-  const showBanner = status === 'ready' || (status === 'available' && !canInstall);
-  $('update-banner').hidden = !showBanner;
-  if (showBanner) {
+  const offered = updateOffered();
+  $('update-banner').hidden = !offered;
+  $('news-badge').hidden = !offered;
+  $('update-primary').hidden = !offered;
+  if (offered) {
     $('update-banner-text').textContent = t(status === 'ready' ? 'update.bannerReady' : 'update.bannerAvailable', vars);
-    $('update-banner-action').textContent = t(status === 'ready' ? 'update.install' : 'update.download');
+    $('update-banner-action').textContent = t('update.whatsNew');
+    $('update-primary-label').textContent = t('update.whatsNew');
   }
 }
+
+function renderChangelog() {
+  $('changelog').replaceChildren(...releases.map((r) => renderRelease(r, currentLanguage())));
+}
+
+async function openWhatsNew(mode: 'update' | 'installed') {
+  const version = mode === 'update' ? updateState.version ?? '' : config.version;
+  let release = releases.find((r) => r.version === version);
+  if (mode === 'update') {
+    const remote = await window.api.getRemoteChangelog(version);
+    release = remote ? parseChangelog(remote).find((r) => r.version === version) : undefined;
+  }
+  $('whats-new-title').textContent = t(mode === 'update' ? 'news.titleUpdate' : 'news.titleInstalled', { version });
+  const body = $('whats-new-body');
+  if (release) {
+    body.replaceChildren(renderRelease(release, currentLanguage(), false));
+  } else {
+    const note = document.createElement('p');
+    note.className = 'hint';
+    note.textContent = t('news.notesUnavailable');
+    body.replaceChildren(note);
+  }
+  const action = $<HTMLButtonElement>('whats-new-action');
+  action.dataset.mode = mode;
+  action.hidden = mode === 'update' && !updateOffered();
+  $('whats-new-action-label').textContent = mode === 'update' ? updateActionLabel() : t('news.close');
+  $('whats-new').hidden = false;
+  action.focus();
+}
+
+const closeWhatsNew = () => ($('whats-new').hidden = true);
 
 window.api.onUpdateState((state) => {
   updateState = state;
   renderUpdate();
 });
 $('update-check').addEventListener('click', () => window.api.checkForUpdates());
-$('update-banner-action').addEventListener('click', () => {
-  if (updateState.status === 'ready') window.api.installUpdate();
-  else window.api.openDownloadPage();
+$('update-banner-action').addEventListener('click', () => void openWhatsNew('update'));
+$('update-primary').addEventListener('click', () => void openWhatsNew('update'));
+$('whats-new-close').addEventListener('click', closeWhatsNew);
+$('whats-new').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeWhatsNew();
 });
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('whats-new').hidden) closeWhatsNew();
+});
+$('whats-new-action').addEventListener('click', () => {
+  if ($('whats-new-action').dataset.mode === 'update') runUpdateAction();
+  closeWhatsNew();
+});
+$('feedback-bug').addEventListener('click', () => window.api.openFeedback('bug'));
+$('feedback-idea').addEventListener('click', () => window.api.openFeedback('idea'));
+
+// Show the notes once after the app was updated (not on the very first start).
+function showNotesAfterUpdate() {
+  const seen = settings.lastSeenVersion;
+  if (seen === config.version) return;
+  settings = { ...settings, lastSeenVersion: config.version };
+  saveSettings(settings);
+  if (seen) void openWhatsNew('installed');
+}
 
 // macOS permissions
 
@@ -397,5 +466,6 @@ $('version').textContent = `v${config.version}`;
 applyTheme();
 applyLanguage();
 void refreshPermissions();
+showNotesAfterUpdate();
 restartHost();
 setInterval(refreshStatus, STATUS_POLL_MS);
