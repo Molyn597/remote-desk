@@ -7,6 +7,15 @@ someone control your computer — or control theirs. No account, no server to ru
 
 > Early development. See [SECURITY.md](SECURITY.md) before using it on computers you care about.
 
+<p align="center">
+  <img src="docs/screenshots/home-light.png" width="800" alt="Remote Desk home screen with your ID and password, the connect form and recent connections" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/home-dark.png" width="395" alt="Home screen in dark mode" />
+  <img src="docs/screenshots/news.png" width="395" alt="What's new page with updates, feedback and changelog" />
+</p>
+
 ## Install
 
 Download the installer for your system from [Releases](../../releases):
