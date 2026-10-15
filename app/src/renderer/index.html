@@ -175,6 +175,12 @@
           </div>
           <form id="settings-form" class="settings" autocomplete="off">
             <div class="settings-group">
+              <h3 class="section-title" data-i18n="settings.name"></h3>
+              <p class="hint" data-i18n="settings.nameHint"></p>
+              <input id="setting-name" maxlength="40" data-i18n-placeholder="settings.namePlaceholder" />
+            </div>
+
+            <div class="settings-group">
               <h3 class="section-title" data-i18n="settings.language"></h3>
               <select id="setting-language">
                 <option value="auto" data-i18n="settings.languageAuto"></option>
@@ -283,6 +289,7 @@
       <div class="toolbar" id="toolbar">
         <span class="toolbar-title" id="viewer-title"></span>
         <span class="conn" id="conn-info"><span class="dot"></span><span id="conn-text">…</span></span>
+        <span class="control-notice" id="control-notice" data-i18n="toolbar.controlOff" hidden></span>
         <span class="toolbar-sep"></span>
         <button class="tool" id="tool-scale" data-i18n-title="toolbar.original">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" /></svg>

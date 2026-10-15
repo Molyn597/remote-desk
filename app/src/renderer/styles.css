@@ -1161,3 +1161,14 @@ h3 {
   width: 16px;
   height: 16px;
 }
+
+.control-notice {
+  margin-right: 4px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}

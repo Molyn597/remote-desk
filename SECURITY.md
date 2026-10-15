@@ -5,10 +5,16 @@ with people you trust.
 
 ## Current safeguards
 
-- Every session needs the correct password **and** an explicit **Allow** on the controlled computer.
+- Every session needs the correct password **and** an explicit choice on the controlled computer:
+  **Allow control**, **View only** or **Deny** (the default). The prompt shows who is connecting and
+  warns about tech-support scams.
 - The password is the key that encrypts the connection handshake. It is never sent to relays or
   servers; a wrong password simply cannot establish a connection.
-- A red bar is shown on the controlled computer for the whole session; it can disconnect at any time.
+- An always-on-top panel is shown on the controlled computer for the whole session, with the
+  connected person, duration, **Pause control** and **Disconnect**.
+- Moving the local mouse immediately pauses remote input, so the person at the computer stays in charge.
+- After a refusal the same peer can't trigger another prompt for 20 seconds.
+- No hidden mode, black-screen/privacy mode or unattended access — features commonly abused by scammers.
 - Only one viewer at a time. Input is accepted only from the approved viewer and only during a session.
 - Video and input travel directly between the computers over WebRTC (DTLS-SRTP encrypted).
 

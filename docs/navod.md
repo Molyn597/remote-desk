@@ -45,9 +45,13 @@ Pokud budete Mac jen používat k ovládání jiných počítačů, oprávnění
 
 1. Otevřete Remote Desk. Na kartě **Povolit vzdálené ovládání** je vaše **ID** (9 číslic) a **heslo**.
 2. Pošlete obojí člověku, který se má připojit. Tlačítka s ikonou kopírování je vloží do schránky.
-3. Když se partner připojí, aplikace se zeptá **Povolit vzdálené ovládání?**.
-   Klikněte na **Povolit**, nebo **Odmítnout**.
-4. Během relace je nahoře černý pruh „Probíhá vzdálená relace“. Tlačítkem **Odpojit** ji kdykoli ukončíte.
+3. Když se partner připojí, aplikace ukáže jeho jméno a ID a varování před podvodníky. Vyberte:
+   - **Povolit ovládání**: partner vidí obrazovku a ovládá myš i klávesnici,
+   - **Jen sledování**: partner jen vidí obrazovku,
+   - **Odmítnout**.
+4. Během relace je nahoře černý panel, který zůstává nad všemi okny. Ukazuje, kdo je připojený a jak
+   dlouho. Tlačítkem **Pozastavit ovládání** partnerovi ovládání dočasně vypnete, **Odpojit** relaci ukončí.
+   Když sami pohnete myší, máte přednost a partnerovo ovládání se na chvíli zastaví.
 5. Po relaci můžete vygenerovat nové heslo šrafovaným tlačítkem vedle hesla. Staré heslo pak přestane platit.
 
 ID zůstává stejné, heslo se mění při každém spuštění aplikace.
@@ -65,6 +69,14 @@ a Ctrl automaticky prohodí, takže kopírování funguje tak, jak jste zvyklí.
 Psaný text se přenáší přesně včetně diakritiky, bez ohledu na rozložení klávesnice na druhé straně.
 
 Nedávná připojení jsou dole na hlavní stránce. Tlačítko **Připojit** předvyplní ID, stačí zadat heslo.
+
+Pokud vám partner povolí jen sledování nebo ovládání pozastaví, uvidíte v liště oranžový štítek
+„Ovládání vypnul partner“.
+
+### Vaše jméno
+
+V **Nastavení → Vaše jméno** si můžete zadat jméno, které partner uvidí v dialogu při připojení.
+Je to nepovinné; bez jména se zobrazí jen vaše ID.
 
 ## Lišta během relace
 

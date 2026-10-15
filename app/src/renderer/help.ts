@@ -20,8 +20,8 @@ const cs: Section[] = [
     title: 'Nechat se ovládat',
     steps: [
       'Pošlete partnerovi své ID a heslo z karty „Povolit vzdálené ovládání“. Tlačítkem pro kopírování je dostanete do schránky.',
-      'Když se partner připojí, aplikace se zeptá „Povolit vzdálené ovládání?“. Bez vašeho souhlasu se nikdo nepřipojí.',
-      'Během relace nahoře svítí černý pruh. Tlačítkem Odpojit relaci kdykoli ukončíte.',
+      'Když se partner připojí, uvidíte jeho jméno a ID a vyberete: Povolit ovládání, Jen sledování, nebo Odmítnout. Bez vašeho souhlasu se nikdo nepřipojí.',
+      'Během relace je nahoře černý panel, vždy nad ostatními okny. Můžete v něm pozastavit ovládání nebo relaci odpojit. Když pohnete myší, máte přednost před partnerem.',
       'Po relaci si můžete vygenerovat nové heslo (šrafované tlačítko vedle hesla).',
     ],
   },
@@ -31,7 +31,7 @@ const cs: Section[] = [
       'Na druhém počítači musí běžet Remote Desk. Zadejte jeho ID a heslo do karty „Ovládat vzdálený počítač“ a klikněte na Připojit.',
       'Počkejte, až partner připojení povolí. Pak uvidíte jeho obrazovku a můžete ovládat myš i klávesnici.',
       'Kliknutím do obrazu převezmete klávesnici. Zkratky jako Cmd+C nebo Ctrl+C se posílají na vzdálený počítač.',
-      'Nedávná připojení najdete dole na hlavní stránce, stačí doplnit heslo.',
+      'Nedávná připojení najdete dole na hlavní stránce, stačí doplnit heslo. V Nastavení si můžete zadat jméno, které partner uvidí.',
     ],
   },
   {
@@ -72,8 +72,8 @@ const en: Section[] = [
     title: 'Let someone control this computer',
     steps: [
       'Send your partner the ID and password from the “Allow remote control” card. The copy buttons put them on the clipboard.',
-      'When your partner connects, the app asks “Allow remote control?”. Nobody gets in without your approval.',
-      'A black bar stays at the top during the session. Click Disconnect to end it at any time.',
+      'When your partner connects, you see their name and ID and choose: Allow control, View only, or Deny. Nobody gets in without your approval.',
+      'During the session a black panel stays on top of all windows. Use it to pause control or disconnect. When you move your mouse, you take priority over your partner.',
       'After the session you can generate a new password (hatched button next to it).',
     ],
   },
@@ -83,7 +83,7 @@ const en: Section[] = [
       'Remote Desk must be running on the other computer. Enter its ID and password under “Control remote computer” and click Connect.',
       'Wait until your partner allows the connection. Then you see their screen and can use the mouse and keyboard.',
       'Click into the picture to take over the keyboard. Shortcuts like Cmd+C or Ctrl+C are sent to the remote computer.',
-      'Recent connections are listed at the bottom of the home page; just add the password.',
+      'Recent connections are listed at the bottom of the home page; just add the password. In Settings you can set the name your partner sees.',
     ],
   },
   {

@@ -13,8 +13,15 @@ import {
   systemPreferences,
   type MenuItemConstructorOptions,
 } from 'electron';
-import type { ConfirmText, PermissionKind, SessionState } from '../preload/api';
-import { handleInput, resetInput } from './input';
+import type {
+  ConfirmChoice,
+  ConfirmText,
+  PermissionKind,
+  SessionAction,
+  SessionPanelInfo,
+  SessionState,
+} from '../preload/api';
+import { handleInput, resetInput, watchLocalMouse } from './input';
 
 const isMac = process.platform === 'darwin';
 const PRIVACY_PANES: Record<PermissionKind, string> = {
@@ -26,7 +33,10 @@ const PRIVACY_PANES: Record<PermissionKind, string> = {
 if (process.env.RD_USER_DATA) app.setPath('userData', process.env.RD_USER_DATA);
 
 let win: BrowserWindow | undefined;
+let panel: BrowserWindow | undefined;
 let sessionState: SessionState = 'idle';
+
+const PANEL_SIZE = { width: 740, height: 64 };
 
 // While viewing a remote screen, shortcuts like Cmd+C or Cmd+W must reach the
 // remote computer, so the menu keeps only the app submenu (Quit).
@@ -60,15 +70,66 @@ function createWindow() {
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
-  win.on('closed', () => (win = undefined));
+  win.on('closed', () => {
+    win = undefined;
+    panel?.close();
+  });
   win.loadFile(path.join(__dirname, 'index.html'));
 }
 
+// Always-on-top bar shown while this computer is being viewed, so the session
+// stays visible even when the Remote Desk window is hidden behind other apps.
+function showSessionPanel(info: SessionPanelInfo | null) {
+  if (!info) {
+    panel?.close();
+    return;
+  }
+  if (!panel) {
+    const { workArea } = screen.getPrimaryDisplay();
+    panel = new BrowserWindow({
+      ...PANEL_SIZE,
+      x: Math.round(workArea.x + (workArea.width - PANEL_SIZE.width) / 2),
+      y: workArea.y + 10,
+      frame: false,
+      transparent: true,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      alwaysOnTop: true,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        sandbox: true,
+      },
+    });
+    panel.setAlwaysOnTop(true, 'screen-saver');
+    panel.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    panel.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    panel.webContents.on('will-navigate', (e) => e.preventDefault());
+    panel.on('closed', () => (panel = undefined));
+    panel.loadFile(path.join(__dirname, 'session.html'));
+    panel.once('ready-to-show', () => panel?.showInactive());
+  }
+  const send = () => panel?.webContents.send('session-panel-info', info);
+  if (panel.webContents.isLoading()) panel.webContents.once('did-finish-load', send);
+  else send();
+}
+
 function onSessionState(state: SessionState) {
-  if (state !== 'host') resetInput();
+  if (state !== 'host') {
+    resetInput();
+    showSessionPanel(null);
+  }
   sessionState = state;
+  watchLocalMouse(state === 'host');
   setMenu(state === 'viewer');
 }
+
+const fromMainWindow = (e: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => e.sender === win?.webContents;
 
 async function requestPermission(kind: PermissionKind) {
   if (!isMac) return;
@@ -107,24 +168,36 @@ app.whenReady().then(() => {
     app.exit(0);
   });
   ipcMain.on('copy-text', (_e, text: string) => clipboard.writeText(String(text)));
-  ipcMain.handle('confirm-connection', async (_e, text: ConfirmText) => {
-    if (!win) return false;
+  ipcMain.handle('confirm-connection', async (e, text: ConfirmText): Promise<ConfirmChoice> => {
+    if (!win || !fromMainWindow(e)) return 'deny';
     if (win.isMinimized()) win.restore();
     win.show();
     app.focus({ steal: true });
+    const choices: ConfirmChoice[] = ['control', 'view', 'deny'];
     const { response } = await dialog.showMessageBox(win, {
-      type: 'question',
-      buttons: [text.allow, text.deny],
-      defaultId: 1,
-      cancelId: 1,
+      type: 'warning',
+      buttons: [text.allowControl, text.allowView, text.deny],
+      defaultId: 2,
+      cancelId: 2,
       message: text.title,
       detail: text.detail,
     });
-    return response === 0;
+    return choices[response] ?? 'deny';
   });
-  ipcMain.on('session-state', (_e, state: SessionState) => onSessionState(state));
-  ipcMain.on('input', (_e, ev) => {
-    if (sessionState !== 'host') return;
+  ipcMain.on('session-state', (e, state: SessionState) => {
+    if (fromMainWindow(e)) onSessionState(state);
+  });
+  ipcMain.on('session-panel', (e, info: SessionPanelInfo | null) => {
+    if (fromMainWindow(e)) showSessionPanel(sessionState === 'host' ? info : null);
+  });
+  ipcMain.on('session-action', (e, action: SessionAction) => {
+    if (e.sender !== panel?.webContents) return;
+    if (action === 'pause' || action === 'resume' || action === 'disconnect') {
+      win?.webContents.send('session-action', action);
+    }
+  });
+  ipcMain.on('input', (e, ev) => {
+    if (sessionState !== 'host' || !fromMainWindow(e)) return;
     try {
       handleInput(ev);
     } catch (err) {

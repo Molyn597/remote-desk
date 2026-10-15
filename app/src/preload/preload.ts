@@ -10,6 +10,10 @@ const api: Api = {
   confirmConnection: (text) => ipcRenderer.invoke('confirm-connection', text),
   setSessionState: (state) => ipcRenderer.send('session-state', state),
   sendInput: (ev) => ipcRenderer.send('input', ev),
+  showSessionPanel: (info) => ipcRenderer.send('session-panel', info),
+  onSessionAction: (handler) => ipcRenderer.on('session-action', (_e, action) => handler(action)),
+  onSessionPanelInfo: (handler) => ipcRenderer.on('session-panel-info', (_e, info) => handler(info)),
+  sendSessionAction: (action) => ipcRenderer.send('session-action', action),
 };
 
 contextBridge.exposeInMainWorld('api', api);

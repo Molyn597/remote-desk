@@ -45,8 +45,13 @@ If you only use the Mac to control other computers, no permissions are needed.
 
 1. Open Remote Desk. The **Allow remote control** card shows your **ID** (9 digits) and **password**.
 2. Send both to the person who should connect. The copy buttons put them on the clipboard.
-3. When they connect, the app asks **Allow remote control?** Click **Allow** or **Deny**.
-4. During the session a black bar at the top says the session is active. **Disconnect** ends it at any time.
+3. When they connect, the app shows their name and ID and a scam warning. Choose:
+   - **Allow control**: they see the screen and use the mouse and keyboard,
+   - **View only**: they only see the screen,
+   - **Deny**.
+4. During the session a black panel stays on top of all windows, showing who is connected and for how
+   long. **Pause control** temporarily disables their input, **Disconnect** ends the session.
+   When you move your own mouse you take priority and their control pauses for a moment.
 5. Afterwards, create a new password with the hatched button next to it. The old one stops working.
 
 The ID stays the same; the password changes every time the app starts.
@@ -64,6 +69,14 @@ and Ctrl are swapped automatically so copy and paste work as you expect.
 Typed text arrives exactly, accents included, regardless of the keyboard layout on the other side.
 
 Recent connections are listed at the bottom of the home page. **Connect** fills in the ID; add the password.
+
+If your partner allows view only or pauses control, an orange "Control off — set by partner" label appears
+in the toolbar.
+
+### Your name
+
+Under **Settings → Your name** you can set the name your partner sees in the connection prompt.
+It's optional; without it only your ID is shown.
 
 ## Session toolbar
 

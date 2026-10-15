@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'" />
+    <title>Remote Desk</title>
+    <link rel="stylesheet" href="session.css" />
+    <script type="module" src="session.js"></script>
+  </head>
+  <body>
+    <div class="session-panel">
+      <span class="pulse"></span>
+      <span class="title" id="title"></span>
+      <span class="mode" id="mode"></span>
+      <span class="timer" id="timer">00:00</span>
+      <button class="secondary" id="pause"></button>
+      <button class="primary" id="disconnect"></button>
+    </div>
+  </body>
+</html>

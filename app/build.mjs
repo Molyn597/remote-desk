@@ -23,11 +23,12 @@ await Promise.all([
   }),
   build({
     ...common,
-    entryPoints: ['src/renderer/renderer.ts'],
-    outfile: 'dist/renderer.js',
+    entryPoints: ['src/renderer/renderer.ts', 'src/renderer/session.ts'],
+    outdir: 'dist',
     platform: 'browser',
     format: 'esm',
   }),
-  cp('src/renderer/index.html', 'dist/index.html'),
-  cp('src/renderer/styles.css', 'dist/styles.css'),
+  ...['index.html', 'styles.css', 'session.html', 'session.css'].map((file) =>
+    cp(`src/renderer/${file}`, `dist/${file}`),
+  ),
 ]);

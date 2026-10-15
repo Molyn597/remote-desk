@@ -1,5 +1,5 @@
 import type { Room } from '@trystero-p2p/ws-relay';
-import type { Answer, AnswerReason, Control, Hello, InputEvent } from '../../../shared/protocol';
+import type { Answer, AnswerReason, Control, Hello, InputEvent, SessionStatus } from '../../../shared/protocol';
 import { join } from './network';
 import type { Settings } from './settings';
 
@@ -11,6 +11,9 @@ export type ViewerStatus = 'searching' | 'waiting';
 
 export interface ViewerSession {
   hostPlatform: string;
+  // False when the host granted view-only access or paused control.
+  canControl: boolean;
+  onControlChange?: (canControl: boolean) => void;
   sendInput(ev: InputEvent): void;
   sendControl(control: Control): void;
   connection(): RTCPeerConnection | undefined;
@@ -37,7 +40,7 @@ export class Viewer {
     private readonly events: ViewerEvents,
   ) {}
 
-  connect(settings: Settings, partnerId: string, password: string) {
+  connect(settings: Settings, partnerId: string, password: string, identity: { name: string; id: string }) {
     const room = join(settings, partnerId, password, {
       onJoinError: (e) => {
         if (/password/i.test(e.error)) this.end('wrongPassword');
@@ -52,8 +55,11 @@ export class Viewer {
     const bye = room.makeAction<null>('bye');
     const input = room.makeAction<InputEvent>('input');
     const control = room.makeAction<Control>('control');
+    const status = room.makeAction<SessionStatus>('status');
+    let session: ViewerSession | undefined;
 
-    room.onPeerJoin = (peerId) => void hello.send({ role: 'viewer', platform: this.platform }, { target: peerId });
+    room.onPeerJoin = (peerId) =>
+      void hello.send({ role: 'viewer', platform: this.platform, ...identity }, { target: peerId });
     hello.onMessage = (data, { peerId }) => {
       if (data?.role !== 'host' || this.hostPeer) return;
       this.hostPeer = peerId;
@@ -63,15 +69,25 @@ export class Viewer {
     };
     answer.onMessage = (data, { peerId }) => {
       if (peerId !== this.hostPeer || this.connected) return;
-      if (!data?.accepted) return this.end(data?.reason ?? 'declined');
+      if (!data?.accepted) {
+        const known: AnswerReason[] = ['declined', 'busy', 'capture'];
+        return this.end(known.includes(data?.reason as AnswerReason) ? data.reason : 'declined');
+      }
       clearTimeout(this.timer);
       this.connected = true;
-      this.events.onConnected({
+      session = {
         hostPlatform: this.hostPlatform,
+        canControl: data.control !== false,
         sendInput: (ev) => void input.send(ev, { target: peerId }),
         sendControl: (c) => void control.send(c, { target: peerId }),
         connection: () => this.room?.getPeers()[peerId],
-      });
+      };
+      this.events.onConnected(session);
+    };
+    status.onMessage = (data, { peerId }) => {
+      if (!session || peerId !== this.hostPeer || typeof data?.control !== 'boolean') return;
+      session.canControl = data.control;
+      session.onControlChange?.(data.control);
     };
     room.onPeerStream = (stream, peerId) => {
       if (peerId === this.hostPeer) this.events.onStream(stream);

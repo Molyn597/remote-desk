@@ -60,20 +60,30 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
       video.focus();
     });
 
-  // Input capture, paused in view-only mode.
-  let detachInput: (() => void) | undefined = attachInputCapture(video, session.sendInput, options.localIsMac);
+  // Input capture: off in local view-only mode or when the host disabled control.
+  let detachInput: (() => void) | undefined;
   let viewOnly = false;
+  const syncInput = () => {
+    const enabled = !viewOnly && session.canControl;
+    if (enabled && !detachInput) detachInput = attachInputCapture(video, session.sendInput, options.localIsMac);
+    if (!enabled && detachInput) {
+      detachInput();
+      detachInput = undefined;
+    }
+    $('tool-viewonly').classList.toggle('active', !enabled);
+    $('control-notice').hidden = session.canControl;
+  };
+  session.onControlChange = syncInput;
   onClick('tool-viewonly', () => {
     viewOnly = !viewOnly;
-    $('tool-viewonly').classList.toggle('active', viewOnly);
-    if (viewOnly) {
-      detachInput?.();
-      detachInput = undefined;
-    } else {
-      detachInput = attachInputCapture(video, session.sendInput, options.localIsMac);
-    }
+    syncInput();
   });
-  cleanups.push(() => detachInput?.());
+  syncInput();
+  cleanups.push(() => {
+    detachInput?.();
+    session.onControlChange = undefined;
+    $('control-notice').hidden = true;
+  });
 
   // Fit to window / original size with edge panning.
   let original = false;

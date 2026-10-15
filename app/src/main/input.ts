@@ -10,8 +10,14 @@ const NAMED_KEYS = new Set([
 ]);
 const CHAR_KEY = /^[a-z0-9`\-=[\]\\;',./]$/;
 
+const LOCAL_PRIORITY_MS = 1500;
+const LOCAL_POLL_MS = 100;
+
 const pressed = new Set<MouseButton>();
 let viewerPlatform = '';
+let lastInjected: { x: number; y: number; at: number } | undefined;
+let localUntil = 0;
+let watchTimer: ReturnType<typeof setInterval> | undefined;
 
 robot.setMouseDelay(0);
 robot.setKeyboardDelay(0);
@@ -28,7 +34,37 @@ function remapModifiers(mods: string[]): string[] {
   return valid.map((m) => (m === viewerPrimary ? hostPrimary : m === hostPrimary ? viewerPrimary : m));
 }
 
+// The person at this computer wins: moving the local mouse pauses remote input briefly.
+export function watchLocalMouse(enabled: boolean) {
+  clearInterval(watchTimer);
+  watchTimer = undefined;
+  lastInjected = undefined;
+  localUntil = 0;
+  if (!enabled) return;
+  let last = robot.getMousePos();
+  watchTimer = setInterval(() => {
+    const pos = robot.getMousePos();
+    const moved = Math.abs(pos.x - last.x) + Math.abs(pos.y - last.y) > 2;
+    last = pos;
+    if (!moved) return;
+    const remote =
+      lastInjected &&
+      Date.now() - lastInjected.at < 250 &&
+      Math.abs(pos.x - lastInjected.x) + Math.abs(pos.y - lastInjected.y) <= 2;
+    if (!remote) {
+      localUntil = Date.now() + LOCAL_PRIORITY_MS;
+      releaseButtons();
+    }
+  }, LOCAL_POLL_MS);
+}
+
+function releaseButtons() {
+  for (const button of pressed) robot.mouseToggle('up', button);
+  pressed.clear();
+}
+
 export function handleInput(ev: InputEvent) {
+  if (ev.t !== 'hello' && Date.now() < localUntil) return;
   switch (ev.t) {
     case 'hello':
       viewerPlatform = String(ev.platform);
@@ -40,6 +76,7 @@ export function handleInput(ev: InputEvent) {
       // macOS only recognises drags from drag events, not plain moves.
       if (pressed.size) robot.dragMouse(x, y);
       else robot.moveMouse(x, y);
+      lastInjected = { x, y, at: Date.now() };
       return;
     }
     case 'button':
@@ -67,7 +104,6 @@ export function handleInput(ev: InputEvent) {
 }
 
 export function resetInput() {
-  for (const button of pressed) robot.mouseToggle('up', button);
-  pressed.clear();
+  releaseButtons();
   viewerPlatform = '';
 }

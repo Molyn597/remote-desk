@@ -1,6 +1,6 @@
 import type { Api, PermissionKind } from '../preload/api';
 import { renderHelp } from './help';
-import { Host } from './host';
+import { Host, type HostSession, type Visitor } from './host';
 import { currentLanguage, setLanguage, t, type MessageKey } from './i18n';
 import { isOnline } from './network';
 import { addRecent, loadHostId, loadRecent, loadSettings, removeRecent, saveSettings, type Settings } from './settings';
@@ -86,21 +86,48 @@ $('theme-toggle').addEventListener('click', () => {
 
 // Host
 
+function describeVisitor(visitor: Visitor): string {
+  const name = visitor.name ? `„${visitor.name}“` : t('visitor.unknown');
+  return visitor.id ? t('visitor.withId', { name, id: formatId(visitor.id) }) : name;
+}
+
+function showSessionPanel(session: HostSession | null) {
+  window.api.showSessionPanel(
+    session && {
+      title: t('panel.title', { who: describeVisitor(session) }),
+      mode: t(!session.canControl ? 'panel.modeView' : session.paused ? 'panel.modePaused' : 'panel.modeControl'),
+      startedAt: session.startedAt,
+      canControl: session.canControl,
+      paused: session.paused,
+      pauseLabel: t('panel.pause'),
+      resumeLabel: t('panel.resume'),
+      disconnectLabel: t('session.disconnect'),
+    },
+  );
+}
+
 const host = new Host(config.platform, {
-  confirm: () =>
+  confirm: (visitor) =>
     window.api.confirmConnection({
       title: t('confirm.title'),
-      detail: t('confirm.detail'),
-      allow: t('confirm.allow'),
+      detail: t('confirm.detail', { who: describeVisitor(visitor) }),
+      allowControl: t('confirm.allowControl'),
+      allowView: t('confirm.allowView'),
       deny: t('confirm.deny'),
     }),
-  onSessionChange: (active, error) => {
-    $('host-banner').hidden = !active;
+  onSessionChange: (session, error) => {
+    $('host-banner').hidden = !session;
+    showSessionPanel(session);
     if (error === 'capture') {
       showPage('home');
       setStatus(t('msg.hostCapture'), true);
     }
   },
+});
+
+window.api.onSessionAction((action) => {
+  if (action === 'disconnect') host.disconnect();
+  else host.setPaused(action === 'pause');
 });
 
 function restartHost() {
@@ -193,7 +220,7 @@ $('connect-form').addEventListener('submit', (e) => {
   if (id === hostId) return setStatus(t('msg.ownId'), true);
   viewerPartnerId = id;
   setViewerBusy(true);
-  viewer.connect(settings, id, pw);
+  viewer.connect(settings, id, pw, { name: settings.displayName, id: hostId });
 });
 $('cancel-button').addEventListener('click', () => viewer.disconnect());
 $('sidebar-connect').addEventListener('click', () => {
@@ -258,6 +285,7 @@ function updateServerFields() {
 }
 
 function fillSettingsForm() {
+  $<HTMLInputElement>('setting-name').value = settings.displayName;
   $<HTMLSelectElement>('setting-language').value = settings.language;
   for (const radio of networkRadios()) radio.checked = radio.value === (settings.serverUrl ? 'own' : 'public');
   $<HTMLInputElement>('setting-server').value = settings.serverUrl;
@@ -282,6 +310,7 @@ $('settings-form').addEventListener('submit', (e) => {
   }
   const next: Settings = {
     ...settings,
+    displayName: $<HTMLInputElement>('setting-name').value.trim(),
     language: $<HTMLSelectElement>('setting-language').value as Settings['language'],
     serverUrl,
     turnUrl: $<HTMLInputElement>('setting-turn-url').value.trim(),

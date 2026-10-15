@@ -1,5 +1,15 @@
 import type { Room } from '@trystero-p2p/ws-relay';
-import { QUALITY_SCALE, type Answer, type Control, type Hello, type InputEvent, type Quality } from '../../../shared/protocol';
+import {
+  MAX_NAME_LENGTH,
+  QUALITY_SCALE,
+  type Answer,
+  type Control,
+  type Hello,
+  type InputEvent,
+  type Quality,
+  type SessionStatus,
+} from '../../../shared/protocol';
+import type { ConfirmChoice } from '../preload/api';
 import { join } from './network';
 import type { Settings } from './settings';
 
@@ -9,19 +19,43 @@ const QUALITY_PRESETS: Record<Quality, { bitrate: number; preference: RTCDegrada
   quality: { bitrate: 16_000_000, preference: 'maintain-resolution' },
 };
 
-export interface HostEvents {
-  confirm(): Promise<boolean>;
-  onSessionChange(active: boolean, error?: 'capture' | 'partnerLeft'): void;
+// After a refusal the same peer can't pop up another dialog for a while.
+const DECLINE_COOLDOWN_MS = 20_000;
+
+export interface Visitor {
+  name: string;
+  id: string;
 }
+
+export interface HostSession extends Visitor {
+  canControl: boolean;
+  paused: boolean;
+  startedAt: number;
+}
+
+export interface HostEvents {
+  confirm(visitor: Visitor): Promise<ConfirmChoice>;
+  onSessionChange(session: HostSession | null, error?: 'capture' | 'partnerLeft'): void;
+}
+
+const cleanName = (value: unknown) =>
+  String(value ?? '')
+    .replace(/[\p{C}]/gu, '')
+    .trim()
+    .slice(0, MAX_NAME_LENGTH);
+
+const cleanId = (value: unknown) => (/^\d{9}$/.test(String(value)) ? String(value) : '');
 
 // Waits in the room named after this computer's ID and serves one viewer at a time.
 export class Host {
   private room?: Room;
-  private sessionPeer?: string;
+  private session?: HostSession & { peerId: string };
   private pendingPeer?: string;
   private stream?: MediaStream;
+  private declined = new Map<string, number>();
   private sendHello?: (data: Hello, peerId: string) => void;
   private sendAnswer?: (data: Answer, peerId: string) => void;
+  private sendStatus?: (data: SessionStatus, peerId: string) => void;
   private sendBye?: (peerId: string) => void;
 
   constructor(
@@ -30,7 +64,7 @@ export class Host {
   ) {}
 
   get active() {
-    return Boolean(this.sessionPeer || this.pendingPeer);
+    return Boolean(this.session || this.pendingPeer);
   }
 
   async start(settings: Settings, id: string, password: string) {
@@ -40,24 +74,33 @@ export class Host {
 
     const hello = room.makeAction<Hello>('hello');
     const answer = room.makeAction<Answer>('answer');
+    const status = room.makeAction<SessionStatus>('status');
     const bye = room.makeAction<null>('bye');
     const input = room.makeAction<InputEvent>('input');
     const control = room.makeAction<Control>('control');
     this.sendHello = (data, peerId) => void hello.send(data, { target: peerId });
     this.sendAnswer = (data, peerId) => void answer.send(data, { target: peerId });
+    this.sendStatus = (data, peerId) => void status.send(data, { target: peerId });
     this.sendBye = (peerId) => void bye.send(null, { target: peerId });
 
     room.onPeerJoin = (peerId) => this.sendHello?.({ role: 'host', platform: this.platform }, peerId);
     room.onPeerLeave = (peerId) => this.peerGone(peerId);
     hello.onMessage = (data, { peerId }) => {
-      if (data?.role === 'viewer') void this.handleRequest(peerId, String(data.platform));
+      if (data?.role !== 'viewer') return;
+      void this.handleRequest(peerId, String(data.platform ?? '').slice(0, 20), {
+        name: cleanName(data.name),
+        id: cleanId(data.id),
+      });
     };
     bye.onMessage = (_, { peerId }) => this.peerGone(peerId);
     input.onMessage = (ev, { peerId }) => {
-      if (peerId === this.sessionPeer) window.api.sendInput(ev);
+      const s = this.session;
+      if (s && peerId === s.peerId && s.canControl && !s.paused && ev && typeof ev === 'object') {
+        window.api.sendInput(ev);
+      }
     };
     control.onMessage = (data, { peerId }) => {
-      if (peerId === this.sessionPeer && data?.quality in QUALITY_PRESETS) void this.tuneSender(peerId, data.quality);
+      if (peerId === this.session?.peerId && data?.quality in QUALITY_PRESETS) void this.tuneSender(peerId, data.quality);
     };
   }
 
@@ -72,20 +115,39 @@ export class Host {
     this.endSession(true);
   }
 
-  private async handleRequest(peerId: string, viewerPlatform: string) {
-    if (this.active) return this.sendAnswer?.({ accepted: false, reason: 'busy' }, peerId);
-    this.pendingPeer = peerId;
-    const allowed = await this.events.confirm();
-    if (this.pendingPeer !== peerId) return; // viewer left while the dialog was open
-    this.pendingPeer = undefined;
-    if (!allowed) return this.sendAnswer?.({ accepted: false, reason: 'declined' }, peerId);
-    await this.startSession(peerId, viewerPlatform);
+  setPaused(paused: boolean) {
+    const s = this.session;
+    if (!s || !s.canControl || s.paused === paused) return;
+    s.paused = paused;
+    this.sendStatus?.({ control: !paused }, s.peerId);
+    this.events.onSessionChange({ ...s });
   }
 
-  private async startSession(peerId: string, viewerPlatform: string) {
-    this.sessionPeer = peerId;
+  private async handleRequest(peerId: string, viewerPlatform: string, visitor: Visitor) {
+    if (this.active) {
+      if (peerId !== this.pendingPeer && peerId !== this.session?.peerId) {
+        this.sendAnswer?.({ accepted: false, reason: 'busy' }, peerId);
+      }
+      return;
+    }
+    if ((this.declined.get(peerId) ?? 0) > Date.now()) {
+      return this.sendAnswer?.({ accepted: false, reason: 'declined' }, peerId);
+    }
+    this.pendingPeer = peerId;
+    const choice = await this.events.confirm(visitor);
+    if (this.pendingPeer !== peerId) return; // viewer left while the dialog was open
+    this.pendingPeer = undefined;
+    if (choice === 'deny') {
+      this.declined.set(peerId, Date.now() + DECLINE_COOLDOWN_MS);
+      return this.sendAnswer?.({ accepted: false, reason: 'declined' }, peerId);
+    }
+    await this.startSession(peerId, viewerPlatform, visitor, choice === 'control');
+  }
+
+  private async startSession(peerId: string, viewerPlatform: string, visitor: Visitor, canControl: boolean) {
+    this.session = { ...visitor, peerId, canControl, paused: false, startedAt: Date.now() };
     window.api.setSessionState('host');
-    this.events.onSessionChange(true);
+    this.events.onSessionChange({ ...this.session });
 
     let stream: MediaStream;
     try {
@@ -99,14 +161,14 @@ export class Host {
       this.endSession(false, 'capture');
       return;
     }
-    if (this.sessionPeer !== peerId) {
+    if (this.session?.peerId !== peerId) {
       stream.getTracks().forEach((t) => t.stop());
       return;
     }
     this.stream = stream;
     stream.getVideoTracks()[0].contentHint = 'detail';
     window.api.sendInput({ t: 'hello', platform: viewerPlatform });
-    this.sendAnswer?.({ accepted: true }, peerId);
+    this.sendAnswer?.({ accepted: true, control: canControl }, peerId);
     await Promise.all(this.room!.addStream(stream, { target: peerId }));
     await this.tuneSender(peerId, 'auto');
   }
@@ -128,13 +190,13 @@ export class Host {
 
   private peerGone(peerId: string) {
     if (peerId === this.pendingPeer) this.pendingPeer = undefined;
-    if (peerId === this.sessionPeer) this.endSession(false, 'partnerLeft');
+    if (peerId === this.session?.peerId) this.endSession(false, 'partnerLeft');
   }
 
   private endSession(notifyPeer: boolean, error?: 'capture' | 'partnerLeft') {
-    const peerId = this.sessionPeer;
+    const peerId = this.session?.peerId;
     if (!peerId) return;
-    this.sessionPeer = undefined;
+    this.session = undefined;
     if (notifyPeer) this.sendBye?.(peerId);
     if (this.stream) {
       this.room?.removeStream(this.stream, { target: peerId });
@@ -142,6 +204,6 @@ export class Host {
       this.stream = undefined;
     }
     window.api.setSessionState('idle');
-    this.events.onSessionChange(false, error);
+    this.events.onSessionChange(null, error);
   }
 }
