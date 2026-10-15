@@ -62,9 +62,7 @@
         }
       ],
       "category": "public.app-category.utilities",
-      "sign": {
-        "identity": null
-      }
+      "identity": null
     },
     "win": {
       "target": [
@@ -85,7 +83,6 @@
       "createDesktopShortcut": true,
       "deleteAppDataOnUninstall": true
     },
-    "afterSign": "scripts/after-sign.cjs",
     "npmRebuild": false,
     "publish": [
       {
@@ -112,6 +109,7 @@
           "path": "/Applications"
         }
       ]
-    }
+    },
+    "afterPack": "scripts/sign-mac.cjs"
   }
 }

@@ -19,10 +19,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release list --limit 100 --json tagName --jq '.[].tagName' | grep -qx "$GITHUB_REF_NAME"; then
-            echo "A release for $GITHUB_REF_NAME already exists. Bump the version for a new release."
+          if gh release list --limit 100 --json tagName,isDraft --jq '.[] | select(.isDraft | not) | .tagName' | grep -qx "$GITHUB_REF_NAME"; then
+            echo "$GITHUB_REF_NAME is already published. Bump the version for a new release."
             exit 1
           fi
+          # A draft left behind by a failed run is replaced.
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$GITHUB_REF_NAME\") | .id"); do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done
       - name: Check tag matches app version
         run: |
           VERSION="v$(node -p "require('./app/package.json').version")"
