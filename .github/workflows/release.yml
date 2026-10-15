@@ -79,8 +79,14 @@ jobs:
           security import "$RUNNER_TEMP/signing.p12" -k "$KEYCHAIN" -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KEYCHAIN" > /dev/null
           rm "$RUNNER_TEMP/signing.p12"
-          IDENTITY=$(security find-identity -p codesigning "$KEYCHAIN" | awk '/"Remote Desk Signing"/ { print $2; exit }')
-          [ -n "$IDENTITY" ] || { echo "::error::Signing identity not found"; exit 1; }
+          # codesign only finds identities in keychains on the search list, and older
+          # macOS versions also require the self-signed certificate to be trusted.
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-certificate -c "Remote Desk Signing" -p "$KEYCHAIN" > "$RUNNER_TEMP/signing.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$KEYCHAIN" "$RUNNER_TEMP/signing.pem"
+          rm "$RUNNER_TEMP/signing.pem"
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | awk '/"Remote Desk Signing"/ { print $2; exit }')
+          [ -n "$IDENTITY" ] || { echo "::error::No valid signing identity"; security find-identity -p codesigning "$KEYCHAIN"; exit 1; }
           echo "RD_SIGN_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
           echo "RD_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
       - name: Build and upload installers
