@@ -1,0 +1,22 @@
+# Relay with automatic HTTPS (Let's Encrypt) via Caddy.
+# Point a DNS record at this machine, then: DOMAIN=relay.example.com docker compose up -d
+# In Remote Desk use: wss://relay.example.com
+services:
+  relay:
+    build: .
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${DOMAIN:?set DOMAIN} --to relay:8080
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      - relay
+
+volumes:
+  caddy-data:

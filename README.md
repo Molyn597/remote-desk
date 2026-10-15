@@ -1,0 +1,95 @@
+<p align="center"><img src="app/build/icon.png" width="96" alt="" /></p>
+
+# Remote Desk
+
+Open-source remote desktop for Windows and macOS. Install, share your ID and password, and let
+someone control your computer — or control theirs. No account, no server to run.
+
+> Early development. See [SECURITY.md](SECURITY.md) before using it on computers you care about.
+
+## Install
+
+Download the installer for your system from [Releases](../../releases):
+
+- **Windows** — `Remote-Desk-…-win-x64.exe` (or `arm64`). Runs and installs in one click.
+  The app is not code-signed yet, so Windows SmartScreen may warn: click **More info → Run anyway**.
+- **macOS** — `Remote-Desk-…-mac-universal.dmg`. Drag the app to Applications.
+  The app is not notarized yet, so on first launch macOS blocks it: open
+  **System Settings → Privacy & Security** and click **Open Anyway**.
+
+## Use
+
+1. On the computer that should be controlled, open Remote Desk and send its **ID** and
+   **password** to your partner.
+2. Your partner enters them under **Control remote computer** and clicks **Connect**.
+3. You click **Allow**. A red bar shows the session is active; **Disconnect** ends it any time.
+
+On macOS the controlled Mac needs two permissions, granted once (the app guides you under
+**Permissions**): **Screen Recording** and **Accessibility**. Windows needs no permissions.
+
+## How it works
+
+- Computers find each other through **public Nostr relays** (via [Trystero](https://github.com/dmotz/trystero)).
+  The relays only pass the encrypted connection handshake; the password is the encryption key
+  and never leaves your computer.
+- Video and input then flow **directly** between the two computers over WebRTC (DTLS-SRTP encrypted).
+- The screen is captured with Electron's `desktopCapturer`; mouse and keyboard are injected with
+  [`@jitsi/robotjs`](https://github.com/jitsi/robotjs).
+
+Some networks (mobile data, strict corporate firewalls) block direct connections. For those, add a
+TURN relay under **Settings → TURN relay** (e.g. your own [coturn](https://github.com/coturn/coturn)
+or a hosted TURN service).
+
+## Own server (optional)
+
+Prefer not to depend on public relays? Run your own tiny relay and select
+**Settings → Network → Own server** on **both** computers.
+
+**On a home server or VPS with Docker:**
+
+```bash
+git clone https://github.com/OWNER/remote-desk.git
+cd remote-desk/server
+docker build -t remote-desk-relay .
+docker run -d --restart unless-stopped -p 8080:8080 remote-desk-relay
+```
+
+Use `ws://<server-ip>:8080` inside your local network.
+
+**Over the internet with HTTPS** — point a domain at the server, then:
+
+```bash
+cd remote-desk/server
+DOMAIN=relay.example.com docker compose up -d
+```
+
+Caddy obtains a certificate automatically. Use `wss://relay.example.com` in the app.
+
+**Without Docker** (Node.js 24+): `npm install && npm run server`.
+
+## Development
+
+Requires Node.js 24+.
+
+```bash
+npm install
+npm run app            # build and start the app
+npm -w app run dist    # build installers into app/release
+npm run server         # optional relay on ws://localhost:8080
+```
+
+Run a second instance on the same machine with its own profile:
+`RD_USER_DATA=/tmp/rd-2 npm run app`.
+
+Releases are built by GitHub Actions when a `v*` tag is pushed.
+
+## Roadmap
+
+- [ ] Clipboard sync and file transfer
+- [ ] Multiple monitors
+- [ ] Unattended access and a Windows service (UAC prompts, lock screen)
+- [ ] Code signing (Windows) and notarization (macOS)
+
+## License
+
+[MIT](LICENSE)

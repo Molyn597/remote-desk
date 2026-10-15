@@ -1,0 +1,79 @@
+{
+  "name": "remote-desk-app",
+  "productName": "Remote Desk",
+  "version": "0.1.0",
+  "description": "Open-source remote desktop",
+  "author": "remote-desk contributors",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --publish never",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jitsi/robotjs": "^0.6.24"
+  },
+  "devDependencies": {
+    "@trystero-p2p/ws-relay": "^0.26.0",
+    "@types/node": "^24.19.2",
+    "electron": "44.7.2",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "trystero": "^0.26.0",
+    "typescript": "^7.0.2"
+  },
+  "build": {
+    "appId": "io.github.remotedesk",
+    "productName": "Remote Desk",
+    "artifactName": "Remote-Desk-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/**/*.map",
+      "package.json",
+      "!**/node_modules/@jitsi/robotjs/{build,src,test}/**"
+    ],
+    "asarUnpack": [
+      "**/node_modules/@jitsi/robotjs/**"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities",
+      "sign": {
+        "identity": null
+      }
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "deleteAppDataOnUninstall": true
+    },
+    "afterSign": "scripts/after-sign.cjs",
+    "npmRebuild": false
+  }
+}

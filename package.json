@@ -1,0 +1,14 @@
+{
+  "name": "remote-desk",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "server",
+    "app"
+  ],
+  "scripts": {
+    "server": "npm -w server start",
+    "app": "npm -w app start",
+    "typecheck": "npm -w server run typecheck && npm -w app run typecheck"
+  }
+}
