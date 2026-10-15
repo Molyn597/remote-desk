@@ -224,6 +224,9 @@ export function setLanguage(language: Language, systemLocale: string) {
   for (const el of document.querySelectorAll<HTMLElement>('[data-i18n-title]')) {
     el.title = t(el.dataset.i18nTitle as MessageKey);
   }
+  for (const el of document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]')) {
+    el.placeholder = t(el.dataset.i18nPlaceholder as MessageKey);
+  }
 }
 
 export const currentLanguage = () => current;

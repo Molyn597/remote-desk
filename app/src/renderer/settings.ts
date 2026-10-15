@@ -1,7 +1,9 @@
 export type Language = 'auto' | 'en' | 'cs';
+export type Theme = 'auto' | 'light' | 'dark';
 
 export interface Settings {
   language: Language;
+  theme: Theme;
   serverUrl: string; // empty = public Nostr relays
   turnUrl: string;
   turnUsername: string;
@@ -18,7 +20,7 @@ const RECENT_KEY = 'recentPartners';
 const HOST_ID_KEY = 'hostId';
 const MAX_RECENT = 20;
 
-const DEFAULTS: Settings = { language: 'auto', serverUrl: '', turnUrl: '', turnUsername: '', turnCredential: '' };
+const DEFAULTS: Settings = { language: 'auto', theme: 'auto', serverUrl: '', turnUrl: '', turnUsername: '', turnCredential: '' };
 
 function read<T>(key: string, fallback: T): T {
   try {

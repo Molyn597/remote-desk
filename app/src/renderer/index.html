@@ -11,61 +11,77 @@
     <script type="module" src="renderer.js"></script>
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
-        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
-          <rect x="3" y="5" width="26" height="17" rx="3" fill="currentColor" />
-          <rect x="11" y="24" width="10" height="3" rx="1.5" fill="currentColor" opacity=".5" />
-          <path d="M13.5 8.5v8.5l2-1.8 1.4 2.9 1.3-.6-1.4-2.8 2.7-.2z" fill="#fff" />
-        </svg>
-        <span>Remote Desk</span>
-      </div>
-      <div class="topbar-actions">
-        <span class="status-pill" id="status-pill"><span class="dot"></span><span id="status-text"></span></span>
-        <button class="icon-button" data-nav="settings" data-i18n-title="nav.settings">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
-        </button>
-      </div>
-    </header>
-
-    <div class="layout">
-      <nav class="sidebar">
-        <button class="pill-button" id="sidebar-connect" data-i18n="nav.connectButton"></button>
-        <ul class="nav">
-          <li>
-            <button class="nav-item active" data-nav="home">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
-              <span data-i18n="nav.home"></span>
-            </button>
-          </li>
-          <li>
-            <button class="nav-item" data-nav="settings">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" /></svg>
-              <span data-i18n="nav.settings"></span>
-            </button>
-          </li>
-          <li class="mac-only">
-            <button class="nav-item" data-nav="permissions">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
-              <span data-i18n="nav.permissions"></span>
-            </button>
-          </li>
-        </ul>
-
-        <div class="sidebar-footer">
-          <div class="section-label" data-i18n="sidebar.connection"></div>
-          <div class="network">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
-            <div>
-              <div id="network-name"></div>
-              <div class="network-detail" id="network-detail"></div>
-            </div>
-          </div>
-          <div class="version" id="version"></div>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand-pill">
+          <span class="brand-mark">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <rect x="5" y="7" width="22" height="15" rx="3" fill="currentColor" stroke="none" />
+              <path d="M14 10.5v8l1.9-1.7 1.3 2.7 1.2-.6-1.3-2.6 2.6-.2z" fill="var(--accent)" stroke="none" />
+            </svg>
+          </span>
+          <span class="brand-name">Remote Desk</span>
+          <span class="status-dot" id="status-pill"><span class="dot"></span></span>
         </div>
-      </nav>
+
+        <div class="panel nav-panel">
+          <button class="search-pill" id="sidebar-connect">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+            <span data-i18n="nav.connectButton"></span>
+          </button>
+          <ul class="nav">
+            <li>
+              <button class="nav-item active" data-nav="home">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></svg></span>
+                <span data-i18n="nav.home"></span>
+              </button>
+            </li>
+            <li>
+              <button class="nav-item" data-nav="settings">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" /></svg></span>
+                <span data-i18n="nav.settings"></span>
+              </button>
+            </li>
+            <li class="mac-only">
+              <button class="nav-item" data-nav="permissions">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg></span>
+                <span data-i18n="nav.permissions"></span>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div class="panel network-card">
+          <div class="network-head">
+            <span data-i18n="sidebar.connection"></span>
+            <button class="circle-btn small" data-nav="settings" data-i18n-title="nav.settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
+            </button>
+          </div>
+          <div class="network-name" id="network-name"></div>
+          <div class="network-detail" id="network-detail"></div>
+          <div class="network-bar">
+            <span class="hatch"></span>
+            <span class="network-state" id="status-text"></span>
+          </div>
+        </div>
+
+        <div class="version-pill" id="version"></div>
+      </aside>
 
       <main class="content">
+        <div class="content-top">
+          <button class="theme-toggle" id="theme-toggle" aria-label="Theme">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+            <span class="knob"></span>
+          </button>
+          <div class="icon-group">
+            <button class="circle-btn" data-nav="settings" data-i18n-title="nav.settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" /></svg>
+            </button>
+          </div>
+        </div>
+
         <!-- Home -->
         <section class="page" id="page-home">
           <div class="page-header">
@@ -74,39 +90,57 @@
 
           <div class="banner" id="permission-banner" hidden>
             <span data-i18n="perm.banner"></span>
-            <button class="small-button" data-nav="permissions" data-i18n="perm.setup"></button>
+            <button class="circle-btn on-accent" data-nav="permissions" data-i18n-title="perm.setup">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+            </button>
           </div>
 
           <div class="cards">
-            <article class="card card-primary">
-              <div class="card-label" data-i18n="host.label"></div>
-              <h2 data-i18n="host.title"></h2>
-              <div class="field-label" data-i18n="host.id"></div>
-              <div class="value-row">
-                <span class="big-value" id="my-id"></span>
-                <button class="chip" data-copy="my-id" data-i18n="action.copy"></button>
+            <article class="card">
+              <div class="card-head">
+                <h2 data-i18n="host.title"></h2>
+                <span class="card-sub" data-i18n="host.label"></span>
               </div>
-              <div class="field-label" data-i18n="host.password"></div>
-              <div class="value-row">
-                <span class="big-value mono" id="my-password"></span>
-                <button class="chip" data-copy="my-password" data-i18n="action.copy"></button>
-                <button class="chip icon-chip" id="new-password" data-i18n-title="host.newPassword">
+
+              <div class="value-pill">
+                <div class="value-main">
+                  <span class="big-value" id="my-id"></span>
+                  <span class="value-label" data-i18n="host.id"></span>
+                </div>
+                <button class="circle-btn" data-copy="my-id" data-i18n-title="action.copy">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+                </button>
+              </div>
+
+              <div class="value-pill">
+                <div class="value-main">
+                  <span class="big-value mono" id="my-password"></span>
+                  <span class="value-label" data-i18n="host.password"></span>
+                </div>
+                <button class="circle-btn" data-copy="my-password" data-i18n-title="action.copy">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+                </button>
+                <button class="hatch-button" id="new-password" data-i18n-title="host.newPassword">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></svg>
                 </button>
               </div>
+
               <p class="card-hint" data-i18n="host.hint"></p>
             </article>
 
-            <article class="card card-light">
-              <div class="card-label" data-i18n="viewer.label"></div>
-              <h2 data-i18n="viewer.title"></h2>
+            <article class="card">
+              <div class="card-head">
+                <h2 data-i18n="viewer.title"></h2>
+                <span class="card-sub" data-i18n="viewer.label"></span>
+              </div>
               <form id="connect-form" autocomplete="off">
-                <label class="field-label" for="partner-id" data-i18n="viewer.partnerId"></label>
-                <input id="partner-id" inputmode="numeric" placeholder="123 456 789" required />
-                <label class="field-label" for="partner-password" data-i18n="viewer.password"></label>
-                <input id="partner-password" type="password" required />
+                <input id="partner-id" class="pill-input id-input" inputmode="numeric" data-i18n-placeholder="viewer.partnerId" aria-label="Partner ID" required />
+                <input id="partner-password" class="pill-input" type="password" data-i18n-placeholder="viewer.password" aria-label="Password" required />
                 <div class="form-actions">
-                  <button type="submit" class="primary-button" id="connect-button" data-i18n="viewer.connect"></button>
+                  <button type="submit" class="dark-button" id="connect-button">
+                    <span data-i18n="viewer.connect"></span>
+                    <span class="arrow-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg></span>
+                  </button>
                   <button type="button" class="ghost-button" id="cancel-button" data-i18n="viewer.cancel" hidden></button>
                 </div>
                 <p class="form-status" id="connect-status" role="status"></p>
@@ -114,8 +148,10 @@
             </article>
           </div>
 
-          <h3 class="section-title" data-i18n="recent.title"></h3>
-          <div class="table">
+          <div class="panel recent-panel">
+            <div class="section-head">
+              <h3 data-i18n="recent.title"></h3>
+            </div>
             <div class="table-head">
               <span data-i18n="recent.partner"></span>
               <span data-i18n="recent.last"></span>
@@ -194,7 +230,7 @@
             <h1 data-i18n="perm.title"></h1>
           </div>
           <p class="hint wide" data-i18n="perm.hint"></p>
-          <div class="table">
+          <div class="table panel">
             <div class="permission-row">
               <div>
                 <strong data-i18n="perm.screen"></strong>
@@ -220,7 +256,7 @@
     </div>
 
     <div class="host-banner" id="host-banner" hidden>
-      <span data-i18n="session.banner"></span>
+      <span class="dot"></span><span data-i18n="session.banner"></span>
       <button id="host-disconnect" data-i18n="session.disconnect"></button>
     </div>
 

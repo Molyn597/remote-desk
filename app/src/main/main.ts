@@ -49,7 +49,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 620,
     title: 'Remote Desk',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#e9ebec',
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     autoHideMenuBar: !isMac,
     webPreferences: {

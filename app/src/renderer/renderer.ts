@@ -63,7 +63,24 @@ function refreshStatus() {
   const online = isOnline(settings);
   $('status-pill').classList.toggle('online', online);
   $('status-text').textContent = t(online ? 'status.online' : 'status.offline');
+  document.querySelector('.network-card')!.classList.toggle('status-off', !online);
 }
+
+// Theme: explicit choice, or follow the system until the user picks one.
+
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+function applyTheme() {
+  const dark = settings.theme === 'auto' ? darkQuery.matches : settings.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+}
+
+darkQuery.addEventListener('change', applyTheme);
+$('theme-toggle').addEventListener('click', () => {
+  settings = { ...settings, theme: document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark' };
+  saveSettings(settings);
+  applyTheme();
+});
 
 // Host
 
@@ -101,8 +118,12 @@ $('host-disconnect').addEventListener('click', () => host.disconnect());
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
   button.addEventListener('click', () => {
     window.api.copyText($(button.dataset.copy!).textContent!.replace(/\s/g, ''));
-    button.textContent = t('action.copied');
-    setTimeout(() => (button.textContent = t('action.copy')), 1500);
+    button.classList.add('copied');
+    button.title = t('action.copied');
+    setTimeout(() => {
+      button.classList.remove('copied');
+      button.title = t('action.copy');
+    }, 1500);
   });
 }
 
@@ -258,6 +279,7 @@ $('settings-form').addEventListener('submit', (e) => {
     return;
   }
   const next: Settings = {
+    ...settings,
     language: $<HTMLSelectElement>('setting-language').value as Settings['language'],
     serverUrl,
     turnUrl: $<HTMLInputElement>('setting-turn-url').value.trim(),
@@ -312,6 +334,7 @@ window.addEventListener('focus', () => void refreshPermissions());
 document.body.classList.add(`platform-${config.platform}`);
 for (const el of document.querySelectorAll<HTMLElement>('.mac-only')) el.hidden = !isMac;
 $('version').textContent = `v${config.version}`;
+applyTheme();
 applyLanguage();
 void refreshPermissions();
 restartHost();
