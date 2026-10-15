@@ -75,7 +75,8 @@
             "arm64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon-win.png"
     },
     "nsis": {
       "oneClick": true,
@@ -91,6 +92,26 @@
         "provider": "github",
         "releaseType": "draft"
       }
-    ]
+    ],
+    "dmg": {
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "iconSize": 96,
+      "contents": [
+        {
+          "x": 130,
+          "y": 190,
+          "type": "file"
+        },
+        {
+          "x": 410,
+          "y": 190,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   }
 }

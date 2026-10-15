@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   app,
@@ -91,6 +91,7 @@ function createWindow() {
     backgroundColor: '#e9ebec',
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     autoHideMenuBar: !isMac,
+    ...(isMac ? {} : { icon: APP_ICON }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -158,6 +159,39 @@ function onSessionState(state: SessionState) {
   setMenu(state === 'viewer');
 }
 
+const APP_ICON = path.join(__dirname, 'icon.png');
+
+// Running from Downloads or a mounted DMG breaks the Dock icon, Launchpad and updates.
+async function offerMoveToApplications() {
+  if (!isMac || !app.isPackaged || app.isInApplicationsFolder()) return;
+  const prefsPath = path.join(app.getPath('userData'), 'prefs.json');
+  const prefs = await readFile(prefsPath, 'utf8')
+    .then((text) => JSON.parse(text))
+    .catch(() => ({}));
+  if (prefs.skipMoveToApplications) return;
+  const cs = app.getLocale().toLowerCase().startsWith('cs');
+  const { response, checkboxChecked } = await dialog.showMessageBox({
+    type: 'question',
+    buttons: cs ? ['Přesunout do Aplikací', 'Teď ne'] : ['Move to Applications', 'Not now'],
+    defaultId: 0,
+    cancelId: 1,
+    message: cs ? 'Přesunout Remote Desk do složky Aplikace?' : 'Move Remote Desk to the Applications folder?',
+    detail: cs
+      ? 'Aplikaci pak spustíte z Launchpadu nebo Docku a aktualizace budou fungovat správně.'
+      : 'You can then open it from Launchpad or the Dock, and updates work correctly.',
+    checkboxLabel: cs ? 'Už se neptat' : "Don't ask again",
+  });
+  if (response === 0) {
+    try {
+      app.moveToApplicationsFolder();
+    } catch (err) {
+      dialog.showErrorBox('Remote Desk', String((err as Error).message ?? err));
+    }
+  } else if (checkboxChecked) {
+    await writeFile(prefsPath, JSON.stringify({ ...prefs, skipMoveToApplications: true })).catch(() => {});
+  }
+}
+
 const fromMainWindow = (e: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => e.sender === win?.webContents;
 
 async function requestPermission(kind: PermissionKind) {
@@ -168,7 +202,11 @@ async function requestPermission(kind: PermissionKind) {
   await shell.openExternal(PRIVACY_PANES[kind]);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await offerMoveToApplications();
+  // The packaged app takes its icon from the bundle; during development show ours too.
+  if (isMac && !app.isPackaged) app.dock?.setIcon(APP_ICON);
+
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
     if (!request.frame?.url.startsWith('file://')) return callback(null);
     try {

@@ -32,4 +32,5 @@ await Promise.all([
     cp(`src/renderer/${file}`, `dist/${file}`),
   ),
   cp('../CHANGELOG.md', 'dist/CHANGELOG.md'),
+  cp('build/icon.png', 'dist/icon.png'),
 ]);

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 380" width="1080" height="760">
+  <rect width="540" height="380" fill="#e9ebec" />
+  <rect x="24" y="24" width="492" height="332" rx="28" fill="#f2f3f4" stroke="#ffffff" stroke-width="2" />
+  <text x="270" y="78" text-anchor="middle" font-family="-apple-system, Helvetica Neue, sans-serif" font-size="20" fill="#1c1d1f">Remote Desk</text>
+  <text x="270" y="102" text-anchor="middle" font-family="-apple-system, Helvetica Neue, sans-serif" font-size="13" fill="#8e9297">Drag to Applications · Přetáhněte do Aplikací</text>
+  <path d="M222 190h88" stroke="#ffa41b" stroke-width="6" stroke-linecap="round" />
+  <path d="M300 174l18 16-18 16" fill="none" stroke="#ffa41b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
