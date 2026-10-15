@@ -15,6 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Stop if this version was already released
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release list --limit 100 --json tagName --jq '.[].tagName' | grep -qx "$GITHUB_REF_NAME"; then
+            echo "A release for $GITHUB_REF_NAME already exists. Bump the version for a new release."
+            exit 1
+          fi
       - name: Check tag matches app version
         run: |
           VERSION="v$(node -p "require('./app/package.json').version")"
