@@ -2,15 +2,18 @@ import type { Room } from '@trystero-p2p/ws-relay';
 import {
   MAX_NAME_LENGTH,
   type Answer,
+  type Challenge,
   type Control,
   type Hello,
   type InputEvent,
+  type Proof,
   type Quality,
   type SessionStatus,
 } from '../../../shared/protocol';
 import type { ConfirmChoice } from '../preload/api';
+import { challengeText, fingerprint, newNonce, verify } from './identity';
 import { join } from './network';
-import type { Settings } from './settings';
+import { addTrusted, loadTrusted, touchTrusted, type Settings } from './settings';
 
 // Encoding a full Retina/4K screen is slow; "auto" and "speed" downscale it for low latency.
 const QUALITY_PRESETS: Record<
@@ -24,20 +27,24 @@ const QUALITY_PRESETS: Record<
 
 // After a refusal the same peer can't pop up another dialog for a while.
 const DECLINE_COOLDOWN_MS = 20_000;
+const PROOF_TIMEOUT_MS = 10_000;
 
 export interface Visitor {
   name: string;
   id: string;
+  // Device public key; present when the viewer can be remembered as trusted.
+  key?: string;
 }
 
 export interface HostSession extends Visitor {
   canControl: boolean;
   paused: boolean;
   startedAt: number;
+  trusted: boolean;
 }
 
 export interface HostEvents {
-  confirm(visitor: Visitor): Promise<ConfirmChoice>;
+  confirm(visitor: Visitor): Promise<{ choice: ConfirmChoice; remember: boolean }>;
   onSessionChange(session: HostSession | null, error?: 'capture' | 'partnerLeft'): void;
 }
 
@@ -49,6 +56,9 @@ const cleanName = (value: unknown) =>
 
 const cleanId = (value: unknown) => (/^\d{9}$/.test(String(value)) ? String(value) : '');
 
+const cleanKey = (value: unknown) =>
+  typeof value === 'string' && value.length < 300 && /^[A-Za-z0-9+/]+={0,2}$/.test(value) ? value : undefined;
+
 // Waits in the room named after this computer's ID and serves one viewer at a time.
 export class Host {
   private room?: Room;
@@ -56,6 +66,9 @@ export class Host {
   private pendingPeer?: string;
   private stream?: MediaStream;
   private declined = new Map<string, number>();
+  private hostId = '';
+  private proofWaiters = new Map<string, (signature: string) => void>();
+  private sendChallenge?: (data: Challenge, peerId: string) => void;
   private sendHello?: (data: Hello, peerId: string) => void;
   private sendAnswer?: (data: Answer, peerId: string) => void;
   private sendStatus?: (data: SessionStatus, peerId: string) => void;
@@ -72,6 +85,7 @@ export class Host {
 
   async start(settings: Settings, id: string, password: string) {
     await this.stop();
+    this.hostId = id;
     const room = join(settings, id, password);
     this.room = room;
 
@@ -81,6 +95,9 @@ export class Host {
     const bye = room.makeAction<null>('bye');
     const input = room.makeAction<InputEvent>('input');
     const control = room.makeAction<Control>('control');
+    const challenge = room.makeAction<Challenge>('challenge');
+    const proof = room.makeAction<Proof>('proof');
+    this.sendChallenge = (data, peerId) => void challenge.send(data, { target: peerId });
     this.sendHello = (data, peerId) => void hello.send(data, { target: peerId });
     this.sendAnswer = (data, peerId) => void answer.send(data, { target: peerId });
     this.sendStatus = (data, peerId) => void status.send(data, { target: peerId });
@@ -93,7 +110,12 @@ export class Host {
       void this.handleRequest(peerId, String(data.platform ?? '').slice(0, 20), {
         name: cleanName(data.name),
         id: cleanId(data.id),
+        key: cleanKey(data.key),
       });
+    };
+    proof.onMessage = (data, { peerId }) => {
+      const waiter = this.proofWaiters.get(peerId);
+      if (waiter && typeof data?.signature === 'string' && data.signature.length < 200) waiter(data.signature);
     };
     bye.onMessage = (_, { peerId }) => this.peerGone(peerId);
     input.onMessage = (ev, { peerId }) => {
@@ -137,18 +159,61 @@ export class Host {
       return this.sendAnswer?.({ accepted: false, reason: 'declined' }, peerId);
     }
     this.pendingPeer = peerId;
-    const choice = await this.events.confirm(visitor);
+
+    // A remembered device skips the prompt once it proves it holds its private key.
+    const print = visitor.key ? await fingerprint(visitor.key).catch(() => undefined) : undefined;
+    const trusted = print && loadTrusted().find((d) => d.fingerprint === print && d.publicKey === visitor.key);
+    if (trusted && (await this.verifyPeer(peerId, visitor.key!))) {
+      if (this.pendingPeer !== peerId) return;
+      this.pendingPeer = undefined;
+      touchTrusted(trusted.fingerprint);
+      const known = { ...visitor, name: visitor.name || trusted.name };
+      return this.startSession(peerId, viewerPlatform, known, trusted.control, true);
+    }
+
+    const { choice, remember } = await this.events.confirm({ ...visitor, key: print ? visitor.key : undefined });
     if (this.pendingPeer !== peerId) return; // viewer left while the dialog was open
-    this.pendingPeer = undefined;
     if (choice === 'deny') {
+      this.pendingPeer = undefined;
       this.declined.set(peerId, Date.now() + DECLINE_COOLDOWN_MS);
       return this.sendAnswer?.({ accepted: false, reason: 'declined' }, peerId);
     }
-    await this.startSession(peerId, viewerPlatform, visitor, choice === 'control');
+    const canControl = choice === 'control';
+    const remembered = Boolean(remember && print && (await this.verifyPeer(peerId, visitor.key!)));
+    if (this.pendingPeer !== peerId) return;
+    this.pendingPeer = undefined;
+    if (remembered) {
+      addTrusted({ fingerprint: print!, publicKey: visitor.key!, name: visitor.name, id: visitor.id, control: canControl, added: Date.now() });
+    }
+    await this.startSession(peerId, viewerPlatform, visitor, canControl, remembered);
   }
 
-  private async startSession(peerId: string, viewerPlatform: string, visitor: Visitor, canControl: boolean) {
-    this.session = { ...visitor, peerId, canControl, paused: false, startedAt: Date.now() };
+  // Challenge-response: the viewer signs a fresh nonce bound to this computer's ID.
+  private async verifyPeer(peerId: string, key: string): Promise<boolean> {
+    const nonce = newNonce();
+    const signature = await new Promise<string | undefined>((resolve) => {
+      const timer = setTimeout(() => {
+        this.proofWaiters.delete(peerId);
+        resolve(undefined);
+      }, PROOF_TIMEOUT_MS);
+      this.proofWaiters.set(peerId, (sig) => {
+        clearTimeout(timer);
+        this.proofWaiters.delete(peerId);
+        resolve(sig);
+      });
+      this.sendChallenge?.({ nonce }, peerId);
+    });
+    return Boolean(signature) && verify(key, challengeText(this.hostId, nonce), signature!);
+  }
+
+  private async startSession(
+    peerId: string,
+    viewerPlatform: string,
+    visitor: Visitor,
+    canControl: boolean,
+    trusted: boolean,
+  ) {
+    this.session = { ...visitor, peerId, canControl, paused: false, startedAt: Date.now(), trusted };
     window.api.setSessionState('host');
     this.events.onSessionChange({ ...this.session });
 

@@ -3,6 +3,16 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.2] - 2026-10-15
+
+### Added
+
+- Trusted devices: tick "Remember this device" when allowing a connection and that device connects without asking next time. Manage them in Settings. Devices are recognised by a cryptographic key, not by their ID.
+
+### Changed
+
+- macOS installs updates by itself (Restart and update), and keeps Screen Recording and Accessibility permissions after updating. This works from 0.1.2 on; updating to 0.1.2 is the last manual install.
+
 ## [0.1.1] - 2026-10-15
 
 ### Changed

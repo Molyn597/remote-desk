@@ -12,6 +12,13 @@ export interface ConfirmText {
   allowControl: string;
   allowView: string;
   deny: string;
+  // Shown as a checkbox when the visitor can be remembered as a trusted device.
+  remember?: string;
+}
+
+export interface ConfirmResult {
+  choice: ConfirmChoice;
+  remember: boolean;
 }
 
 // Shown in the always-on-top session panel while this computer is being viewed.
@@ -28,7 +35,7 @@ export interface SessionPanelInfo {
 
 export interface UpdateState {
   status: 'unsupported' | 'idle' | 'checking' | 'latest' | 'available' | 'downloading' | 'ready' | 'error';
-  // Windows downloads and installs updates; elsewhere the user downloads them.
+  // False when updates must be downloaded by hand (e.g. a macOS build without the release signature).
   canInstall: boolean;
   version?: string;
   error?: string;
@@ -40,7 +47,7 @@ export interface Api {
   requestPermission(kind: PermissionKind): Promise<void>;
   relaunch(): void;
   copyText(text: string): void;
-  confirmConnection(text: ConfirmText): Promise<ConfirmChoice>;
+  confirmConnection(text: ConfirmText): Promise<ConfirmResult>;
   setSessionState(state: SessionState): void;
   sendInput(ev: InputEvent): void;
   // Main window <-> session panel.

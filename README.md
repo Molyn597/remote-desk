@@ -116,9 +116,22 @@ the macOS DMG/ZIP, uploads them to a draft release and publishes it when all bui
 
 Installed apps check for updates at start-up and every 4 hours:
 
-- **Windows** downloads the update in the background and offers **Restart and update**.
-- **macOS** shows **A new version is available** with a link to the release. Fully automatic
-  installs on macOS need an Apple Developer ID signature (see roadmap).
+downloads the update in the background and offers **Restart and update** on both Windows and macOS.
+
+### macOS signing
+
+Every macOS release is signed with the same self-signed certificate ("Remote Desk Signing"), so
+macOS keeps Screen Recording and Accessibility permissions across updates and accepts in-place
+updates. It is not an Apple Developer ID, so the very first install still needs
+**System Settings → Privacy & Security → Open Anyway**.
+
+The release workflow reads the certificate from two repository secrets:
+
+- `MAC_CERT_P12_BASE64`: the certificate and private key (`.p12`), base64-encoded
+- `MAC_CERT_PASSWORD`: its password
+
+Keep a backup of the `.p12` and its password. Releases signed with a different certificate lose
+permissions and can't update in place, so users would have to reinstall once.
 
 ## Feedback
 
@@ -130,7 +143,7 @@ or open an [issue](../../issues/new/choose). Security problems: see [SECURITY.md
 - [ ] Clipboard sync and file transfer
 - [ ] Multiple monitors
 - [ ] Unattended access and a Windows service (UAC prompts, lock screen)
-- [ ] Code signing (Windows) and notarization (macOS), enabling automatic updates on macOS
+- [ ] Code signing (Windows) and Apple notarization (macOS) to remove first-install warnings
 - [ ] Signed update manifests (Ed25519) once electron-builder 27 is released
 
 ## License

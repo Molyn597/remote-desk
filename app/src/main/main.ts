@@ -17,6 +17,7 @@ import {
 } from 'electron';
 import type {
   ConfirmChoice,
+  ConfirmResult,
   ConfirmText,
   PermissionKind,
   SessionAction,
@@ -238,21 +239,23 @@ app.whenReady().then(async () => {
     app.exit(0);
   });
   ipcMain.on('copy-text', (_e, text: string) => clipboard.writeText(String(text)));
-  ipcMain.handle('confirm-connection', async (e, text: ConfirmText): Promise<ConfirmChoice> => {
-    if (!win || !fromMainWindow(e)) return 'deny';
+  ipcMain.handle('confirm-connection', async (e, text: ConfirmText): Promise<ConfirmResult> => {
+    if (!win || !fromMainWindow(e)) return { choice: 'deny', remember: false };
     if (win.isMinimized()) win.restore();
     win.show();
     app.focus({ steal: true });
     const choices: ConfirmChoice[] = ['control', 'view', 'deny'];
-    const { response } = await dialog.showMessageBox(win, {
+    const { response, checkboxChecked } = await dialog.showMessageBox(win, {
       type: 'warning',
       buttons: [text.allowControl, text.allowView, text.deny],
       defaultId: 2,
       cancelId: 2,
       message: text.title,
       detail: text.detail,
+      ...(text.remember ? { checkboxLabel: text.remember, checkboxChecked: false } : {}),
     });
-    return choices[response] ?? 'deny';
+    const choice = choices[response] ?? 'deny';
+    return { choice, remember: choice !== 'deny' && checkboxChecked };
   });
   ipcMain.on('session-state', (e, state: SessionState) => {
     if (fromMainWindow(e)) onSessionState(state);

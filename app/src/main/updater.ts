@@ -5,9 +5,10 @@ import { repoUrl } from './repo';
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
-// Squirrel.Mac only installs updates into apps signed with an Apple Developer ID,
-// so on macOS (and in development) updates are announced and downloaded by hand.
-const canInstall = process.platform === 'win32';
+// Windows and macOS install updates in place. On macOS this needs every release
+// signed with the same certificate; if Squirrel.Mac rejects an update (e.g. an
+// ad-hoc signed local build) we fall back to a manual download.
+let canInstall = process.platform === 'win32' || process.platform === 'darwin';
 
 let state: UpdateState = { status: app.isPackaged ? 'idle' : 'unsupported', canInstall };
 let notify: (state: UpdateState) => void = () => {};
@@ -51,7 +52,15 @@ export function setupUpdater(onChange: (state: UpdateState) => void) {
     setState({ status: canInstall ? 'downloading' : 'available', version: info.version }),
   );
   autoUpdater.on('update-downloaded', (info) => setState({ status: 'ready', version: info.version }));
-  autoUpdater.on('error', (err) => setState({ status: 'error', error: err.message }));
+  autoUpdater.on('error', (err) => {
+    if (process.platform === 'darwin' && state.version && state.status !== 'checking') {
+      canInstall = false;
+      autoUpdater.autoDownload = false;
+      setState({ status: 'available', canInstall, error: err.message });
+    } else {
+      setState({ status: 'error', error: err.message });
+    }
+  });
 
   void checkForUpdates();
   setInterval(() => void checkForUpdates(), CHECK_INTERVAL_MS);

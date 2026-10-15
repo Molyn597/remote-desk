@@ -2,8 +2,13 @@
 
 export type Role = 'host' | 'viewer';
 
-// The viewer also sends its display name and own ID so the host knows who is asking.
-export type Hello = { role: Role; platform: string; name?: string; id?: string };
+// The viewer also sends its display name, own ID and device public key (SPKI, base64)
+// so the host knows who is asking and can recognise trusted devices.
+export type Hello = { role: Role; platform: string; name?: string; id?: string; key?: string };
+
+// Host -> viewer: sign this nonce to prove you own the device key. Viewer -> host: the signature.
+export type Challenge = { nonce: string };
+export type Proof = { signature: string };
 
 export type AnswerReason = 'declined' | 'busy' | 'capture';
 // `control: false` means the host granted view-only access. `screen` is the captured size in pixels.

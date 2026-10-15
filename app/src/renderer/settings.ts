@@ -74,3 +74,30 @@ export function loadHostId(): string {
   }
   return id;
 }
+
+// Devices that may connect without the Allow prompt (they still need the password).
+export interface TrustedDevice {
+  fingerprint: string;
+  publicKey: string;
+  name: string;
+  id: string;
+  control: boolean;
+  added: number;
+  lastUsed?: number;
+}
+
+const TRUSTED_KEY = 'trustedDevices';
+
+export const loadTrusted = (): TrustedDevice[] => read<TrustedDevice[]>(TRUSTED_KEY, []);
+
+export function addTrusted(device: TrustedDevice) {
+  write(TRUSTED_KEY, [device, ...loadTrusted().filter((d) => d.fingerprint !== device.fingerprint)]);
+}
+
+export function removeTrusted(fingerprint: string) {
+  write(TRUSTED_KEY, loadTrusted().filter((d) => d.fingerprint !== fingerprint));
+}
+
+export function touchTrusted(fingerprint: string) {
+  write(TRUSTED_KEY, loadTrusted().map((d) => (d.fingerprint === fingerprint ? { ...d, lastUsed: Date.now() } : d)));
+}

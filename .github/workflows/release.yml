@@ -59,6 +59,30 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # macOS keeps permissions across updates only if every release is signed
+      # with the same certificate (see "Signing" in README).
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS'
+        env:
+          MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        run: |
+          if [ -z "$MAC_CERT_P12_BASE64" ] || [ -z "$MAC_CERT_PASSWORD" ]; then
+            echo "::error::Secrets MAC_CERT_P12_BASE64 and MAC_CERT_PASSWORD are required"
+            exit 1
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          echo "$MAC_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security create-keychain -p ci "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p ci "$KEYCHAIN"
+          security import "$RUNNER_TEMP/signing.p12" -k "$KEYCHAIN" -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KEYCHAIN" > /dev/null
+          rm "$RUNNER_TEMP/signing.p12"
+          IDENTITY=$(security find-identity -p codesigning "$KEYCHAIN" | awk '/"Remote Desk Signing"/ { print $2; exit }')
+          [ -n "$IDENTITY" ] || { echo "::error::Signing identity not found"; exit 1; }
+          echo "RD_SIGN_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          echo "RD_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
       - name: Build and upload installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

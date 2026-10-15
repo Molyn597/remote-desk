@@ -2,9 +2,20 @@ import type { Api, PermissionKind, UpdateState } from '../preload/api';
 import { parseChangelog, renderRelease, type Release } from './changelog';
 import { renderHelp } from './help';
 import { Host, type HostSession, type Visitor } from './host';
+import { loadIdentity } from './identity';
 import { currentLanguage, setLanguage, t, type MessageKey } from './i18n';
 import { isOnline } from './network';
-import { addRecent, loadHostId, loadRecent, loadSettings, removeRecent, saveSettings, type Settings } from './settings';
+import {
+  addRecent,
+  loadHostId,
+  loadRecent,
+  loadSettings,
+  loadTrusted,
+  removeRecent,
+  removeTrusted,
+  saveSettings,
+  type Settings,
+} from './settings';
 import { Viewer, type ViewerError } from './viewer';
 import { attachToolbar } from './viewer-toolbar';
 
@@ -25,6 +36,7 @@ const config = await window.api.getConfig();
 const isMac = config.platform === 'darwin';
 const video = $<HTMLVideoElement>('remote-video');
 const hostId = loadHostId();
+const identity = await loadIdentity();
 
 let settings = loadSettings();
 let password = generatePassword();
@@ -96,7 +108,9 @@ function showSessionPanel(session: HostSession | null) {
   window.api.showSessionPanel(
     session && {
       title: t('panel.title', { who: describeVisitor(session) }),
-      mode: t(!session.canControl ? 'panel.modeView' : session.paused ? 'panel.modePaused' : 'panel.modeControl'),
+      mode:
+        t(!session.canControl ? 'panel.modeView' : session.paused ? 'panel.modePaused' : 'panel.modeControl') +
+        (session.trusted ? ` · ${t('panel.trusted')}` : ''),
       startedAt: session.startedAt,
       canControl: session.canControl,
       paused: session.paused,
@@ -115,6 +129,7 @@ const host = new Host(config.platform, {
       allowControl: t('confirm.allowControl'),
       allowView: t('confirm.allowView'),
       deny: t('confirm.deny'),
+      remember: visitor.key ? t('confirm.remember') : undefined,
     }),
   onSessionChange: (session, error) => {
     $('host-banner').hidden = !session;
@@ -221,7 +236,7 @@ $('connect-form').addEventListener('submit', (e) => {
   if (id === hostId) return setStatus(t('msg.ownId'), true);
   viewerPartnerId = id;
   setViewerBusy(true);
-  viewer.connect(settings, id, pw, { name: settings.displayName, id: hostId });
+  viewer.connect(settings, id, pw, { name: settings.displayName, id: hostId, identity });
 });
 $('cancel-button').addEventListener('click', () => viewer.disconnect());
 $('sidebar-connect').addEventListener('click', () => {
@@ -285,7 +300,40 @@ function updateServerFields() {
   $('own-server-fields').hidden = !own;
 }
 
+function renderTrusted() {
+  const devices = loadTrusted();
+  const dateFormat = new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'medium' });
+  $('trusted-empty').hidden = devices.length > 0;
+  $('trusted-list').replaceChildren(
+    ...devices.map((device) => {
+      const row = document.createElement('div');
+      row.className = 'trusted-row';
+      const text = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = device.name || t('trusted.unnamed');
+      const meta = document.createElement('small');
+      meta.textContent = t('trusted.meta', {
+        id: device.id ? formatId(device.id) : '—',
+        mode: t(device.control ? 'panel.modeControl' : 'panel.modeView'),
+        date: dateFormat.format(device.added),
+      });
+      text.append(name, meta);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'small-button remove';
+      remove.textContent = t('recent.remove');
+      remove.addEventListener('click', () => {
+        removeTrusted(device.fingerprint);
+        renderTrusted();
+      });
+      row.append(text, remove);
+      return row;
+    }),
+  );
+}
+
 function fillSettingsForm() {
+  renderTrusted();
   $<HTMLInputElement>('setting-name').value = settings.displayName;
   $<HTMLSelectElement>('setting-language').value = settings.language;
   for (const radio of networkRadios()) radio.checked = radio.value === (settings.serverUrl ? 'own' : 'public');

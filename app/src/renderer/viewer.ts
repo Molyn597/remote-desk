@@ -1,5 +1,15 @@
 import type { Room } from '@trystero-p2p/ws-relay';
-import type { Answer, AnswerReason, Control, Hello, InputEvent, SessionStatus } from '../../../shared/protocol';
+import type {
+  Answer,
+  AnswerReason,
+  Challenge,
+  Control,
+  Hello,
+  InputEvent,
+  Proof,
+  SessionStatus,
+} from '../../../shared/protocol';
+import { challengeText, type Identity } from './identity';
 import { join } from './network';
 import type { Settings } from './settings';
 
@@ -49,7 +59,12 @@ export class Viewer {
     private readonly events: ViewerEvents,
   ) {}
 
-  connect(settings: Settings, partnerId: string, password: string, identity: { name: string; id: string }) {
+  connect(
+    settings: Settings,
+    partnerId: string,
+    password: string,
+    me: { name: string; id: string; identity?: Identity },
+  ) {
     const room = join(settings, partnerId, password, {
       onJoinError: (e) => {
         if (/password/i.test(e.error)) this.end('wrongPassword');
@@ -65,13 +80,31 @@ export class Viewer {
     const input = room.makeAction<InputEvent>('input');
     const control = room.makeAction<Control>('control');
     const status = room.makeAction<SessionStatus>('status');
+    const challenge = room.makeAction<Challenge>('challenge');
+    const proof = room.makeAction<Proof>('proof');
     let session: ViewerSession | undefined;
 
-    room.onPeerJoin = (peerId) =>
-      void hello.send({ role: 'viewer', platform: this.platform, ...identity }, { target: peerId });
+    // Only the host may get our signature; a challenge can arrive before its hello.
+    const pendingChallenges = new Map<string, string>();
+    const answerChallenge = async (peerId: string, nonce: string) => {
+      if (!me.identity) return;
+      const signature = await me.identity.sign(challengeText(partnerId, nonce));
+      void proof.send({ signature }, { target: peerId });
+    };
+    challenge.onMessage = (data, { peerId }) => {
+      if (typeof data?.nonce !== 'string' || data.nonce.length > 100) return;
+      if (peerId === this.hostPeer) void answerChallenge(peerId, data.nonce);
+      else pendingChallenges.set(peerId, data.nonce);
+    };
+
+    const myHello: Hello = { role: 'viewer', platform: this.platform, name: me.name, id: me.id, key: me.identity?.publicKey };
+    room.onPeerJoin = (peerId) => void hello.send(myHello, { target: peerId });
     hello.onMessage = (data, { peerId }) => {
       if (data?.role !== 'host' || this.hostPeer) return;
       this.hostPeer = peerId;
+      const nonce = pendingChallenges.get(peerId);
+      if (nonce) void answerChallenge(peerId, nonce);
+      pendingChallenges.clear();
       this.hostPlatform = String(data.platform);
       this.events.onStatus('waiting');
       this.startTimer(ACCEPT_TIMEOUT_MS, 'noResponse');
