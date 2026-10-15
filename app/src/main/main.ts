@@ -22,6 +22,7 @@ import type {
   SessionState,
 } from '../preload/api';
 import { handleInput, resetInput, watchLocalMouse } from './input';
+import { checkForUpdates, getUpdateState, installUpdate, openDownloadPage, setupUpdater } from './updater';
 
 const isMac = process.platform === 'darwin';
 const PRIVACY_PANES: Record<PermissionKind, string> = {
@@ -205,8 +206,20 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('update-state', () => getUpdateState());
+  ipcMain.on('update-check', (e) => {
+    if (fromMainWindow(e)) void checkForUpdates();
+  });
+  ipcMain.on('update-install', (e) => {
+    if (fromMainWindow(e)) installUpdate();
+  });
+  ipcMain.on('update-download-page', (e) => {
+    if (fromMainWindow(e)) openDownloadPage();
+  });
+
   setMenu(false);
   createWindow();
+  setupUpdater((state) => win?.webContents.send('update-state', state));
 });
 
 app.on('window-all-closed', () => {

@@ -26,6 +26,14 @@ export interface SessionPanelInfo {
   disconnectLabel: string;
 }
 
+export interface UpdateState {
+  status: 'unsupported' | 'idle' | 'checking' | 'latest' | 'available' | 'downloading' | 'ready' | 'error';
+  // Windows downloads and installs updates; elsewhere the user downloads them.
+  canInstall: boolean;
+  version?: string;
+  error?: string;
+}
+
 export interface Api {
   getConfig(): Promise<{ platform: string; locale: string; version: string }>;
   getPermissions(): Promise<{ screen: PermissionStatus; accessibility: boolean }>;
@@ -41,4 +49,10 @@ export interface Api {
   // Session panel window.
   onSessionPanelInfo(handler: (info: SessionPanelInfo) => void): void;
   sendSessionAction(action: SessionAction): void;
+  // Updates.
+  getUpdateState(): Promise<UpdateState>;
+  onUpdateState(handler: (state: UpdateState) => void): void;
+  checkForUpdates(): void;
+  installUpdate(): void;
+  openDownloadPage(): void;
 }

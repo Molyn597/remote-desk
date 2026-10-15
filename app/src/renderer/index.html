@@ -94,6 +94,11 @@
             <h1 data-i18n="nav.home"></h1>
           </div>
 
+          <div class="banner" id="update-banner" hidden>
+            <span id="update-banner-text"></span>
+            <button class="banner-button" id="update-banner-action"></button>
+          </div>
+
           <div class="banner" id="permission-banner" hidden>
             <span data-i18n="perm.banner"></span>
             <button class="circle-btn on-accent" data-nav="permissions" data-i18n-title="perm.setup">
@@ -227,6 +232,12 @@
                   <input id="setting-turn-credential" type="password" />
                 </div>
               </div>
+            </div>
+
+            <div class="settings-group">
+              <h3 class="section-title" data-i18n="update.title"></h3>
+              <p class="hint" id="update-status"></p>
+              <button type="button" class="small-button" id="update-check" data-i18n="update.check"></button>
             </div>
 
             <div class="form-actions">

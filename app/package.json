@@ -5,6 +5,10 @@
   "description": "Open-source remote desktop",
   "author": "remote-desk contributors",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Molyn597/remote-desk.git"
+  },
   "private": true,
   "main": "dist/main.js",
   "scripts": {
@@ -14,7 +18,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@jitsi/robotjs": "^0.6.24"
+    "@jitsi/robotjs": "^0.6.24",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@trystero-p2p/ws-relay": "^0.26.0",
@@ -48,6 +53,12 @@
           "arch": [
             "universal"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
         }
       ],
       "category": "public.app-category.utilities",
@@ -74,6 +85,12 @@
       "deleteAppDataOnUninstall": true
     },
     "afterSign": "scripts/after-sign.cjs",
-    "npmRebuild": false
+    "npmRebuild": false,
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "draft"
+      }
+    ]
   }
 }

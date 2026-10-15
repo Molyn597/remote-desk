@@ -11,7 +11,7 @@ await Promise.all([
     outfile: 'dist/main.js',
     platform: 'node',
     format: 'cjs',
-    external: ['electron', '@jitsi/robotjs'],
+    external: ['electron', '@jitsi/robotjs', 'electron-updater'],
   }),
   build({
     ...common,

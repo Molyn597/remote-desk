@@ -1,17 +1,36 @@
 name: Release
 
+# Push a tag like v0.2.0 (matching app/package.json) to build and publish a release.
+# Installed apps pick up the new version once the release is published.
+
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check tag matches app version
+        run: |
+          VERSION="v$(node -p "require('./app/package.json').version")"
+          if [ "$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match app version $VERSION"
+            exit 1
+          fi
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --generate-notes --title "Remote Desk $GITHUB_REF_NAME"
+
   build:
+    needs: draft
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -23,25 +42,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: npm -w app run dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: installers-${{ matrix.os }}
-          path: |
-            app/release/*.dmg
-            app/release/*.exe
-          if-no-files-found: error
+      - name: Build and upload installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm -w app run build && npm -w app exec -- electron-builder --publish always
 
-  release:
+  publish:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: installers
-          merge-multiple: true
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: installers/*
-          generate_release_notes: true
+      - uses: actions/checkout@v4
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest

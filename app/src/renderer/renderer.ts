@@ -1,4 +1,4 @@
-import type { Api, PermissionKind } from '../preload/api';
+import type { Api, PermissionKind, UpdateState } from '../preload/api';
 import { renderHelp } from './help';
 import { Host, type HostSession, type Visitor } from './host';
 import { currentLanguage, setLanguage, t, type MessageKey } from './i18n';
@@ -336,8 +336,36 @@ function applyLanguage() {
   renderRecent();
   renderNetwork();
   renderHelp($('help-content'));
+  renderUpdate();
   refreshStatus();
 }
+
+// Updates
+
+let updateState: UpdateState = await window.api.getUpdateState();
+
+function renderUpdate() {
+  const { status, version = '', canInstall } = updateState;
+  const vars = { version, current: config.version };
+  $('update-status').textContent = t(`update.${status}` as MessageKey, vars);
+  $('update-check').hidden = status === 'unsupported';
+  const showBanner = status === 'ready' || (status === 'available' && !canInstall);
+  $('update-banner').hidden = !showBanner;
+  if (showBanner) {
+    $('update-banner-text').textContent = t(status === 'ready' ? 'update.bannerReady' : 'update.bannerAvailable', vars);
+    $('update-banner-action').textContent = t(status === 'ready' ? 'update.install' : 'update.download');
+  }
+}
+
+window.api.onUpdateState((state) => {
+  updateState = state;
+  renderUpdate();
+});
+$('update-check').addEventListener('click', () => window.api.checkForUpdates());
+$('update-banner-action').addEventListener('click', () => {
+  if (updateState.status === 'ready') window.api.installUpdate();
+  else window.api.openDownloadPage();
+});
 
 // macOS permissions
 

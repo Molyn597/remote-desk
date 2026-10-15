@@ -14,6 +14,11 @@ const api: Api = {
   onSessionAction: (handler) => ipcRenderer.on('session-action', (_e, action) => handler(action)),
   onSessionPanelInfo: (handler) => ipcRenderer.on('session-panel-info', (_e, info) => handler(info)),
   sendSessionAction: (action) => ipcRenderer.send('session-action', action),
+  getUpdateState: () => ipcRenderer.invoke('update-state'),
+  onUpdateState: (handler) => ipcRenderer.on('update-state', (_e, state) => handler(state)),
+  checkForUpdates: () => ipcRenderer.send('update-check'),
+  installUpdate: () => ipcRenderer.send('update-install'),
+  openDownloadPage: () => ipcRenderer.send('update-download-page'),
 };
 
 contextBridge.exposeInMainWorld('api', api);

@@ -2,6 +2,10 @@
   "name": "remote-desk",
   "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Molyn597/remote-desk.git"
+  },
   "workspaces": [
     "server",
     "app"

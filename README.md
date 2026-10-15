@@ -51,7 +51,7 @@ Prefer not to depend on public relays? Run your own tiny relay and select
 **On a home server or VPS with Docker:**
 
 ```bash
-git clone https://github.com/OWNER/remote-desk.git
+git clone https://github.com/Molyn597/remote-desk.git
 cd remote-desk/server
 docker build -t remote-desk-relay .
 docker run -d --restart unless-stopped -p 8080:8080 remote-desk-relay
@@ -84,14 +84,38 @@ npm run server         # optional relay on ws://localhost:8080
 Run a second instance on the same machine with its own profile:
 `RD_USER_DATA=/tmp/rd-2 npm run app`.
 
-Releases are built by GitHub Actions when a `v*` tag is pushed.
+## Releasing a new version
+
+1. Set the new version (here `0.2.0`) and commit it:
+
+   ```bash
+   npm -w app version 0.2.0 --no-git-tag-version
+   git commit -am "Release 0.2.0"
+   ```
+
+2. Tag and push:
+
+   ```bash
+   git tag v0.2.0
+   git push origin main v0.2.0
+   ```
+
+GitHub Actions then checks that the tag matches the app version, builds the Windows installer and
+the macOS DMG/ZIP, uploads them to a draft release and publishes it when all builds succeed.
+
+Installed apps check for updates at start-up and every 4 hours:
+
+- **Windows** downloads the update in the background and offers **Restart and update**.
+- **macOS** shows **A new version is available** with a link to the release. Fully automatic
+  installs on macOS need an Apple Developer ID signature (see roadmap).
 
 ## Roadmap
 
 - [ ] Clipboard sync and file transfer
 - [ ] Multiple monitors
 - [ ] Unattended access and a Windows service (UAC prompts, lock screen)
-- [ ] Code signing (Windows) and notarization (macOS)
+- [ ] Code signing (Windows) and notarization (macOS), enabling automatic updates on macOS
+- [ ] Signed update manifests (Ed25519) once electron-builder 27 is released
 
 ## License
 
