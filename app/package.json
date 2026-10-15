@@ -1,7 +1,7 @@
 {
   "name": "remote-desk-app",
   "productName": "Remote Desk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open-source remote desktop",
   "author": "remote-desk contributors",
   "license": "MIT",

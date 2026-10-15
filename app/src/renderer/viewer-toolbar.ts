@@ -1,4 +1,4 @@
-import { QUALITY_SCALE, type InputEvent, type Quality } from '../../../shared/protocol';
+import type { InputEvent, Quality } from '../../../shared/protocol';
 import { t, type MessageKey } from './i18n';
 import type { ViewerSession } from './viewer';
 import { attachInputCapture } from './viewer-input';
@@ -92,10 +92,12 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     stage.classList.toggle('original', original);
     $('tool-scale').classList.toggle('active', original);
     $('tool-scale').title = t(original ? 'toolbar.fit' : 'toolbar.original');
-    // Undo the host's downscaling so "original" matches the remote screen size.
-    const factor = QUALITY_SCALE[quality] / (window.devicePixelRatio || 1);
-    video.style.width = original && video.videoWidth ? `${video.videoWidth * factor}px` : '';
-    video.style.height = original && video.videoHeight ? `${video.videoHeight * factor}px` : '';
+    // Show the remote screen pixel for pixel, even when the stream is downscaled.
+    const dpr = window.devicePixelRatio || 1;
+    const width = session.screen?.width ?? video.videoWidth;
+    const height = session.screen?.height ?? video.videoHeight;
+    video.style.width = original && width ? `${width / dpr}px` : '';
+    video.style.height = original && height ? `${height / dpr}px` : '';
   };
   onClick('tool-scale', () => {
     original = !original;

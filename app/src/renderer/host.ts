@@ -1,7 +1,6 @@
 import type { Room } from '@trystero-p2p/ws-relay';
 import {
   MAX_NAME_LENGTH,
-  QUALITY_SCALE,
   type Answer,
   type Control,
   type Hello,
@@ -13,10 +12,14 @@ import type { ConfirmChoice } from '../preload/api';
 import { join } from './network';
 import type { Settings } from './settings';
 
-const QUALITY_PRESETS: Record<Quality, { bitrate: number; preference: RTCDegradationPreference }> = {
-  auto: { bitrate: 8_000_000, preference: 'balanced' },
-  speed: { bitrate: 2_500_000, preference: 'maintain-framerate' },
-  quality: { bitrate: 16_000_000, preference: 'maintain-resolution' },
+// Encoding a full Retina/4K screen is slow; "auto" and "speed" downscale it for low latency.
+const QUALITY_PRESETS: Record<
+  Quality,
+  { bitrate: number; maxWidth: number; fps: number; preference: RTCDegradationPreference; hint: string }
+> = {
+  auto: { bitrate: 10_000_000, maxWidth: 1920, fps: 60, preference: 'maintain-framerate', hint: 'motion' },
+  speed: { bitrate: 4_000_000, maxWidth: 1280, fps: 60, preference: 'maintain-framerate', hint: 'motion' },
+  quality: { bitrate: 20_000_000, maxWidth: Infinity, fps: 30, preference: 'maintain-resolution', hint: 'detail' },
 };
 
 // After a refusal the same peer can't pop up another dialog for a while.
@@ -152,7 +155,7 @@ export class Host {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 30, max: 30 } },
+        video: { frameRate: { ideal: 60, max: 60 } },
         audio: false,
       });
     } catch (err) {
@@ -166,9 +169,9 @@ export class Host {
       return;
     }
     this.stream = stream;
-    stream.getVideoTracks()[0].contentHint = 'detail';
+    const { width = 0, height = 0 } = stream.getVideoTracks()[0].getSettings();
     window.api.sendInput({ t: 'hello', platform: viewerPlatform });
-    this.sendAnswer?.({ accepted: true, control: canControl }, peerId);
+    this.sendAnswer?.({ accepted: true, control: canControl, screen: { width, height } }, peerId);
     await Promise.all(this.room!.addStream(stream, { target: peerId }));
     await this.tuneSender(peerId, 'auto');
   }
@@ -179,11 +182,14 @@ export class Host {
     const sender = pc?.getSenders().find((s) => s.track === track);
     if (!sender) return;
     const preset = QUALITY_PRESETS[quality];
+    const width = track!.getSettings().width ?? 0;
+    track!.contentHint = preset.hint;
     const params = sender.getParameters();
     params.degradationPreference = preset.preference;
     for (const enc of params.encodings) {
       enc.maxBitrate = preset.bitrate;
-      enc.scaleResolutionDownBy = QUALITY_SCALE[quality];
+      enc.maxFramerate = preset.fps;
+      enc.scaleResolutionDownBy = Math.max(1, width / preset.maxWidth);
     }
     await sender.setParameters(params).catch(console.error);
   }

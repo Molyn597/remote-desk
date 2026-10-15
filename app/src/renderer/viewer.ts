@@ -11,6 +11,8 @@ export type ViewerStatus = 'searching' | 'waiting';
 
 export interface ViewerSession {
   hostPlatform: string;
+  // Size of the host's captured screen in pixels (the stream itself may be downscaled).
+  screen?: { width: number; height: number };
   // False when the host granted view-only access or paused control.
   canControl: boolean;
   onControlChange?: (canControl: boolean) => void;
@@ -25,6 +27,13 @@ export interface ViewerEvents {
   onStream(stream: MediaStream): void;
   onEnd(error?: ViewerError): void;
 }
+
+const validScreen = (s: unknown) => {
+  const { width, height } = (s ?? {}) as { width?: unknown; height?: unknown };
+  return typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0 && width < 20_000
+    ? { width, height }
+    : undefined;
+};
 
 // Joins the host's room, asks for access and receives its screen.
 export class Viewer {
@@ -78,6 +87,7 @@ export class Viewer {
       session = {
         hostPlatform: this.hostPlatform,
         canControl: data.control !== false,
+        screen: validScreen(data.screen),
         sendInput: (ev) => void input.send(ev, { target: peerId }),
         sendControl: (c) => void control.send(c, { target: peerId }),
         connection: () => this.room?.getPeers()[peerId],
@@ -90,7 +100,12 @@ export class Viewer {
       session.onControlChange?.(data.control);
     };
     room.onPeerStream = (stream, peerId) => {
-      if (peerId === this.hostPeer) this.events.onStream(stream);
+      if (peerId !== this.hostPeer) return;
+      // Play frames as soon as they arrive instead of buffering for smoothness.
+      for (const receiver of this.room?.getPeers()[peerId]?.getReceivers() ?? []) {
+        (receiver as RTCRtpReceiver & { jitterBufferTarget?: number }).jitterBufferTarget = 0;
+      }
+      this.events.onStream(stream);
     };
     bye.onMessage = (_, { peerId }) => {
       if (peerId === this.hostPeer) this.end('partnerLeft');
