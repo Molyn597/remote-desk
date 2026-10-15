@@ -36,7 +36,7 @@ Download the installer for your system from [Releases](../../releases):
 On macOS the controlled Mac needs two permissions, granted once (the app guides you under
 **Permissions**): **Screen Recording** and **Accessibility**. Windows needs no permissions.
 
-Full user guide: [English](docs/guide.md) · [Čeština](docs/navod.md). A short version is also built
+Full user guide: [docs/guide.md](docs/guide.md) (also [in Czech](docs/navod.md)). A short version is also built
 into the app under **How to use**.
 
 ## How it works

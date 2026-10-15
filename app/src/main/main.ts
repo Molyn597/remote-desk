@@ -161,6 +161,9 @@ function onSessionState(state: SessionState) {
 
 const APP_ICON = path.join(__dirname, 'icon.png');
 
+// The UI follows the system language (Czech or English), not the app bundle's locale.
+const systemLocale = () => app.getPreferredSystemLanguages()[0] ?? app.getLocale();
+
 // Running from Downloads or a mounted DMG breaks the Dock icon, Launchpad and updates.
 async function offerMoveToApplications() {
   if (!isMac || !app.isPackaged || app.isInApplicationsFolder()) return;
@@ -169,7 +172,7 @@ async function offerMoveToApplications() {
     .then((text) => JSON.parse(text))
     .catch(() => ({}));
   if (prefs.skipMoveToApplications) return;
-  const cs = app.getLocale().toLowerCase().startsWith('cs');
+  const cs = systemLocale().toLowerCase().startsWith('cs');
   const { response, checkboxChecked } = await dialog.showMessageBox({
     type: 'question',
     buttons: cs ? ['Přesunout do Aplikací', 'Teď ne'] : ['Move to Applications', 'Not now'],
@@ -222,7 +225,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('config', () => ({
     platform: process.platform,
-    locale: app.getLocale(),
+    locale: systemLocale(),
     version: app.getVersion(),
   }));
   ipcMain.handle('permissions', () => ({
