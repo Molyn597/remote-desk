@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Remote Desk promo</title>
+<style>
+  :root {
+    --bg: #050506;
+    --win: #131415;
+    --panel: #1b1c1e;
+    --pill: #242628;
+    --line: #2c2e31;
+    --text: #eceef0;
+    --muted: #8b8f94;
+    --accent: #ffa41b;
+  }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  /* 1920×1080 stage, scaled to the window for preview; rendered 1:1 for video. */
+  #stage {
+    position: absolute; left: 50%; top: 50%;
+    width: 1920px; height: 1080px;
+    transform-origin: 0 0;
+    background: var(--bg);
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif;
+    color: var(--text);
+  }
+  .layer { position: absolute; inset: 0; }
+  .center { position: absolute; left: 50%; top: 50%; }
+  .glow {
+    position: absolute; width: 1100px; height: 1100px; left: 50%; top: 50%;
+    margin: -550px 0 0 -550px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,164,27,.20) 0%, rgba(255,164,27,0) 60%);
+  }
+  .title { font-weight: 700; letter-spacing: -0.03em; white-space: nowrap; }
+
+  /* 3D */
+  .scene3d { position: absolute; inset: 0; perspective: 2400px; perspective-origin: 50% 45%; }
+  .rig { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; }
+  .rig > * { position: absolute; transform-style: preserve-3d; }
+
+  /* Mock of the app window */
+  .appwin {
+    left: -660px; top: -390px; width: 1320px; height: 780px;
+    border-radius: 30px; background: var(--win);
+    border: 1px solid #2a2c2f;
+    box-shadow: 0 80px 160px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.03) inset;
+  }
+  .fly { position: absolute; transform-style: preserve-3d; }
+  .p { background: var(--panel); border: 1px solid var(--line); border-radius: 26px; }
+  .pillbox { background: var(--pill); border-radius: 20px; }
+  .lights { left: 26px; top: 22px; display: flex; gap: 10px; }
+  .lights i { width: 14px; height: 14px; border-radius: 50%; background: #3a3c40; display: block; }
+  .h { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { font-size: 15px; color: var(--muted); font-weight: 500; }
+  .big { font-size: 40px; font-weight: 600; letter-spacing: 0.02em; }
+  .nav { display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 16px; border-radius: 26px; font-size: 18px; color: var(--muted); }
+  .nav.on { background: var(--pill); color: var(--text); font-weight: 600; }
+  .nav b { width: 30px; height: 30px; border-radius: 50%; background: #2f3134; display: block; }
+  .nav.on b { background: var(--text); }
+  .hatch { background: repeating-linear-gradient(45deg, var(--accent) 0 5px, transparent 5px 11px); border: 2px solid var(--accent); border-radius: 18px; }
+  .btn { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 26px; height: 64px; border-radius: 32px; background: #f2f3f4; color: #141516; font-size: 21px; font-weight: 600; }
+  .btn i { width: 46px; height: 46px; border-radius: 50%; background: var(--accent); display: block; }
+  .chip { display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 18px; border-radius: 23px; background: var(--pill); font-size: 18px; font-weight: 600; }
+  .star { color: var(--accent); font-size: 20px; }
+
+  /* Feature scenes */
+  .caption { position: absolute; left: 140px; top: 120px; }
+  .caption .n { font-size: 26px; font-weight: 600; color: var(--accent); letter-spacing: .08em; }
+  .caption .t { font-size: 84px; font-weight: 700; letter-spacing: -0.03em; margin-top: 10px; white-space: nowrap; }
+  .caption .s { font-size: 32px; color: var(--muted); margin-top: 12px; font-weight: 500; white-space: nowrap; }
+  .monitor { width: 720px; height: 440px; border-radius: 22px; background: #1d1e21; border: 10px solid #2b2d30; box-shadow: 0 60px 120px rgba(0,0,0,.7); overflow: hidden; }
+  .monitor .wall { position: absolute; inset: 0; background: radial-gradient(120% 90% at 20% 10%, #3a2a14 0%, #1a1712 40%, #101114 100%); }
+  .stand { width: 160px; height: 90px; }
+  .stand::before { content: ''; position: absolute; left: 60px; top: 0; width: 40px; height: 70px; background: #2b2d30; }
+  .stand::after { content: ''; position: absolute; left: 0; top: 70px; width: 160px; height: 16px; border-radius: 8px; background: #2b2d30; }
+  .mwin { position: absolute; border-radius: 14px; background: #202226; border: 1px solid #34363a; box-shadow: 0 20px 40px rgba(0,0,0,.5); }
+  .mwin .bar { height: 30px; border-bottom: 1px solid #2c2e31; display: flex; gap: 7px; align-items: center; padding-left: 12px; }
+  .mwin .bar i { width: 10px; height: 10px; border-radius: 50%; background: #45484d; display: block; }
+  .mwin .row { height: 14px; border-radius: 7px; background: #2d3034; margin: 14px 18px 0; }
+  .label { white-space: nowrap; font-size: 22px; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .key { width: 170px; height: 170px; border-radius: 34px; background: linear-gradient(#2a2c30, #1d1f22); border: 1px solid #3a3d42; box-shadow: 0 16px 0 #0e0f10, 0 30px 60px rgba(0,0,0,.6); display: grid; place-items: center; font-size: 76px; font-weight: 600; color: var(--text); }
+  .file { width: 120px; height: 150px; }
+  .toast { display: flex; align-items: center; gap: 16px; padding: 12px 12px 12px 26px; border-radius: 999px; background: #f2f3f4; color: #141516; font-size: 26px; font-weight: 600; box-shadow: 0 30px 60px rgba(0,0,0,.5); white-space: nowrap; }
+  .toast span { padding: 12px 24px; border-radius: 999px; background: var(--accent); }
+  .bar-eq { width: 26px; border-radius: 13px; background: var(--accent); position: absolute; bottom: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 16px; padding: 18px 34px; border-radius: 999px; background: var(--text); color: #111; font-size: 34px; font-weight: 600; }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="glow" id="glow"></div>
+
+  <!-- 1 · Logo intro -->
+  <div class="layer" id="s1">
+    <svg class="center" id="logo" width="240" height="240" viewBox="36 22 64 72" style="margin:-120px 0 0 -120px">
+      <path d="M44 30v54l13-12 9 19 9-4-9-19 18-1z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
+      <circle id="dot" cx="83" cy="35" r="10" fill="#ffa41b" />
+      <circle id="ripple" cx="44" cy="30" r="6" fill="none" stroke="#ffa41b" stroke-width="2" />
+    </svg>
+    <div class="center title" id="brand" style="font-size:150px">Remote Desk</div>
+  </div>
+
+  <!-- 2 · The app assembling itself in 3D -->
+  <div class="scene3d" id="s2">
+    <div class="rig" id="appRig">
+      <div class="appwin" id="appwin">
+        <div class="fly lights" data-fly="0"><i></i><i></i><i></i></div>
+        <!-- sidebar -->
+        <div class="fly p" data-fly="1" style="left:24px;top:64px;width:250px;height:64px;display:flex;align-items:center;gap:12px;padding:0 14px;box-sizing:border-box">
+          <svg width="34" height="34" viewBox="36 22 64 72"><path d="M44 30v54l13-12 9 19 9-4-9-19 18-1z" fill="#fff"/><circle cx="83" cy="35" r="10" fill="#ffa41b"/></svg>
+          <span style="font-size:19px;font-weight:600">Remote Desk</span>
+        </div>
+        <div class="fly p" data-fly="2" style="left:24px;top:146px;width:250px;height:330px;padding:16px 12px;box-sizing:border-box">
+          <div class="nav on"><b></b>Remote control</div>
+          <div class="nav"><b></b>Settings</div>
+          <div class="nav"><b></b>Permissions</div>
+          <div class="nav"><b></b>What's new</div>
+          <div class="nav"><b></b>How to use</div>
+        </div>
+        <div class="fly p" data-fly="3" style="left:24px;top:494px;width:250px;height:190px;padding:20px;box-sizing:border-box">
+          <div style="font-size:16px;font-weight:600">Connection</div>
+          <div style="font-size:28px;font-weight:600;margin-top:18px">Public network</div>
+          <div class="hatch" style="height:36px;margin-top:24px;border-radius:18px"></div>
+        </div>
+        <!-- host card -->
+        <div class="fly p" data-fly="4" style="left:298px;top:64px;width:490px;height:420px;padding:28px;box-sizing:border-box">
+          <div class="h">Allow remote control <span class="sub">This computer</span></div>
+        </div>
+        <div class="fly pillbox" data-fly="5" style="left:326px;top:140px;width:434px;height:88px;display:flex;align-items:center;padding:0 26px;box-sizing:border-box">
+          <span class="big">568 088 858</span><span class="sub" style="margin-left:12px">Your ID</span>
+        </div>
+        <div class="fly pillbox" data-fly="6" style="left:326px;top:244px;width:434px;height:88px;display:flex;align-items:center;padding:0 12px 0 26px;box-sizing:border-box">
+          <span class="big" style="font-family:ui-monospace,Menlo,monospace;font-size:34px">vpp36x2k</span><span class="sub" style="margin-left:12px">Password</span>
+          <span class="hatch" style="margin-left:auto;width:84px;height:62px;display:block"></span>
+        </div>
+        <!-- viewer card -->
+        <div class="fly p" data-fly="7" style="left:812px;top:64px;width:484px;height:420px;padding:28px;box-sizing:border-box">
+          <div class="h">Control remote computer</div>
+        </div>
+        <div class="fly pillbox" data-fly="8" style="left:840px;top:140px;width:428px;height:72px;display:flex;align-items:center;padding:0 24px;box-sizing:border-box;font-size:26px;color:#6c7076">Partner ID</div>
+        <div class="fly pillbox" data-fly="9" style="left:840px;top:226px;width:428px;height:72px;display:flex;align-items:center;padding:0 24px;box-sizing:border-box;font-size:22px;color:#6c7076">Password</div>
+        <div class="fly btn" data-fly="10" style="left:840px;top:314px;width:428px;box-sizing:border-box">Connect<i></i></div>
+        <div class="fly" data-fly="11" style="left:840px;top:404px"><span class="chip" id="favChip"><span class="star">★</span>Home PC</span></div>
+        <!-- recent -->
+        <div class="fly p" data-fly="12" style="left:298px;top:506px;width:998px;height:178px;padding:24px 28px;box-sizing:border-box">
+          <div class="h" style="font-size:22px">Recent connections</div>
+          <div class="pillbox" style="height:64px;margin-top:20px;display:flex;align-items:center;padding:0 20px;font-size:22px;gap:16px">
+            <span style="width:36px;height:36px;border-radius:50%;background:#f2f3f4;display:block"></span>216 040 249
+            <span class="star" style="margin-left:auto">★</span>
+          </div>
+        </div>
+      </div>
+      <svg id="appCursor" width="44" height="58" viewBox="0 0 22 29" style="position:absolute;left:0;top:0"><path d="M1 1v24l6-5.5 4 8.5 4-1.8-4-8.5 8-.4z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="center title" id="appTag" style="font-size:64px">Your computer, from anywhere.</div>
+  </div>
+
+  <!-- 3 · Feature: multiple monitors -->
+  <div class="scene3d" id="f1">
+    <div class="caption" id="c1"><div class="n">01</div><div class="t">Multiple monitors</div><div class="s">See every remote screen from your Mac.</div></div>
+    <div class="rig" id="r1">
+      <!-- the controlled PC: one monitor that splits into two -->
+      <div class="label" id="pcLabel" style="left:60px;top:-340px;white-space:nowrap">Remote PC</div>
+      <div id="pcB" style="left:50px;top:-300px"><div class="monitor" style="position:relative;width:380px;height:236px;border-width:8px"><div class="wall"></div>
+        <div class="mwin" id="pcWin2" style="left:80px;top:60px;width:180px;height:110px"><div class="bar" style="height:22px"><i></i><i></i><i></i></div><div class="row" style="height:10px;margin-top:12px"></div><div class="row" style="height:10px;width:60%"></div></div></div><div class="stand" style="position:relative;margin:0 auto;transform:scale(.7);transform-origin:top"></div></div>
+      <div id="pcA" style="left:50px;top:-300px"><div class="monitor" style="position:relative;width:380px;height:236px;border-width:8px"><div class="wall"></div>
+        <div class="mwin" id="pcWin" style="left:80px;top:60px;width:180px;height:110px"><div class="bar" style="height:22px"><i></i><i></i><i></i></div><div class="row" style="height:10px;margin-top:12px"></div><div class="row" style="height:10px;width:60%"></div></div>
+      </div><div class="stand" style="position:relative;margin:0 auto;transform:scale(.7);transform-origin:top"></div></div>
+      <!-- the controlling Mac, showing both remote monitors side by side -->
+      <div id="mac" style="left:-820px;top:-150px">
+        <div style="position:relative;width:820px;height:520px;border-radius:26px;background:#0c0d0e;border:10px solid #2b2d30;box-shadow:0 60px 120px rgba(0,0,0,.75);overflow:hidden">
+          <div style="position:absolute;left:290px;top:16px;width:220px;height:34px;border-radius:17px;background:#f2f3f4;display:flex;align-items:center;gap:8px;padding:0 14px;box-sizing:border-box">
+            <i style="width:10px;height:10px;border-radius:50%;background:#30a46c;display:block"></i><span style="font-size:13px;color:#141516;font-weight:600">1920×1080 · 60 fps</span></div>
+          <div id="thA" style="position:absolute;border-radius:12px;background:radial-gradient(120% 90% at 20% 10%,#5a3d16 0%,#2a2620 45%,#1b1d22 100%);border:2px solid #3a3d42;box-sizing:border-box"></div>
+          <div id="thB" style="position:absolute;border-radius:12px;opacity:0;background:radial-gradient(120% 90% at 20% 10%,#5a3d16 0%,#2a2620 45%,#1b1d22 100%);border:2px solid #3a3d42;box-sizing:border-box"></div>
+          <div class="mwin" id="macWin" style="width:220px;height:140px"><div class="bar" style="height:22px"><i></i><i></i><i></i></div><div class="row" style="height:10px;margin-top:12px"></div><div class="row" style="height:10px;width:60%"></div></div>
+          <svg id="macCursor" width="30" height="40" viewBox="0 0 22 29" style="position:absolute;left:0;top:0"><path d="M1 1v24l6-5.5 4 8.5 4-1.8-4-8.5 8-.4z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        </div>
+        <div style="position:relative;width:940px;height:26px;margin-left:-60px;border-radius:0 0 24px 24px;background:#2b2d30"></div>
+        <div class="label" style="position:relative;margin-top:22px;margin-left:10px">Your Mac</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 · Feature: drag and drop files -->
+  <div class="scene3d" id="f2">
+    <div class="caption" id="c2"><div class="n">02</div><div class="t">Drag &amp; drop files</div><div class="s">Drop a file onto the remote screen. Done.</div></div>
+    <div class="rig" id="r2">
+      <div style="left:-820px;top:-90px;width:560px;height:380px" class="monitor"><div class="wall" style="background:radial-gradient(120% 90% at 20% 10%,#22262d,#101114)"></div>
+        <div class="label" style="position:absolute;left:24px;bottom:18px">Your Mac</div></div>
+      <div style="left:120px;top:-160px;width:720px;height:460px" class="monitor"><div class="wall"></div>
+        <div class="label" style="position:absolute;left:24px;bottom:18px">Remote PC</div>
+        <div id="dropZone" style="position:absolute;inset:40px;border:4px dashed rgba(255,164,27,.0);border-radius:22px"></div>
+        <div id="progress" style="position:absolute;left:150px;right:150px;top:200px;height:16px;border-radius:8px;background:#2d3034;overflow:hidden"><div id="progressFill" style="height:100%;width:0;background:var(--accent)"></div></div>
+      </div>
+      <svg id="folder" width="120" height="150" viewBox="0 0 24 30"><path d="M2 2h13l7 7v19H2z" fill="#ffa41b"/><path d="M15 2v7h7" fill="#d58a12"/><path d="M6 15h12M6 19h12M6 23h8" stroke="#8a5300" stroke-width="1.5"/></svg>
+      <div class="toast" id="savedToast" style="left:230px;top:200px">holiday.mov saved to Downloads</div>
+      <svg id="dragCursor" width="44" height="58" viewBox="0 0 22 29"><path d="M1 1v24l6-5.5 4 8.5 4-1.8-4-8.5 8-.4z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+
+  <!-- 5 · Feature: copy with Ctrl/Cmd+C -->
+  <div class="scene3d" id="f3">
+    <div class="caption" id="c3"><div class="n">03</div><div class="t">Copy on one, paste on the other</div><div class="s">Text and files, with the shortcuts you know.</div></div>
+    <div class="rig" id="r3">
+      <div class="key" id="keyCmd" style="left:-420px;top:-40px">⌘</div>
+      <div class="key" id="keyC" style="left:-210px;top:-40px">C</div>
+      <svg class="file" id="file1" viewBox="0 0 24 30" style="left:140px;top:-20px"><path d="M2 2h13l7 7v19H2z" fill="#f2f3f4"/><path d="M15 2v7h7" fill="#c9ccd0"/><path d="M6 15h12M6 19h12M6 23h8" stroke="#9a9ea4" stroke-width="1.5"/></svg>
+      <svg class="file" id="file2" viewBox="0 0 24 30" style="left:140px;top:-20px"><path d="M2 2h13l7 7v19H2z" fill="#ffa41b"/><path d="M15 2v7h7" fill="#d58a12"/><path d="M6 15h12M6 19h12M6 23h8" stroke="#8a5300" stroke-width="1.5"/></svg>
+      <div class="toast" id="toast" style="left:20px;top:200px">report.pdf copied on the remote PC<span>Download</span></div>
+    </div>
+  </div>
+
+  <!-- 6 · Feature: sound -->
+  <div class="scene3d" id="f4">
+    <div class="caption" id="c4"><div class="n">04</div><div class="t">Hear the remote computer</div><div class="s">Sound comes with the picture. Mute it any time.</div></div>
+    <div class="rig" id="r4">
+      <svg id="speaker" width="300" height="300" viewBox="0 0 24 24" style="left:-520px;top:-110px"><path d="M11 5L6 9H3v6h3l5 4z" fill="#ffa41b"/>
+        <path id="w1" d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="#ffa41b" stroke-width="1.6" stroke-linecap="round"/>
+        <path id="w2" d="M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="#ffa41b" stroke-width="1.6" stroke-linecap="round"/>
+        <path id="w3" d="M21.5 2.5a13 13 0 0 1 0 19" fill="none" stroke="#ffa41b" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <div id="eq" style="left:-80px;top:-110px;width:640px;height:300px"></div>
+    </div>
+  </div>
+
+  <!-- 7 · Feature: privacy screen -->
+  <div class="scene3d" id="f5">
+    <div class="caption" id="c5"><div class="n">05</div><div class="t">Privacy screen</div><div class="s">The screen at home goes dark. You still see everything.</div></div>
+    <div class="rig" id="r5">
+      <div style="left:-800px;top:-110px;width:620px;height:390px" class="monitor"><div class="wall"></div>
+        <div class="mwin" style="left:70px;top:60px;width:300px;height:190px"><div class="bar"><i></i><i></i><i></i></div><div class="row"></div><div class="row" style="width:60%"></div></div>
+        <div class="label" style="position:absolute;left:24px;bottom:18px">Your Mac</div></div>
+      <div style="left:120px;top:-110px;width:620px;height:390px" class="monitor"><div class="wall"></div>
+        <div class="mwin" style="left:70px;top:60px;width:300px;height:190px"><div class="bar"><i></i><i></i><i></i></div><div class="row"></div><div class="row" style="width:60%"></div></div>
+        <div id="blackout" style="position:absolute;inset:0;background:#000;display:grid;place-items:center">
+          <svg width="90" height="90" viewBox="0 0 24 24"><path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z" fill="none" stroke="#ffa41b" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="#ffa41b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="label" style="position:absolute;left:24px;bottom:18px;color:#5a5d62">At home</div></div>
+    </div>
+  </div>
+
+  <!-- Short dip to black when the camera flies into the favorite -->
+  <div class="layer" id="dip" style="background:#000;opacity:0;z-index:5"></div>
+
+  <!-- 8 · End card -->
+  <div class="layer" id="s5">
+    <svg class="center" id="endLogo" width="170" height="170" viewBox="36 22 64 72">
+      <path d="M44 30v54l13-12 9 19 9-4-9-19 18-1z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
+      <circle cx="83" cy="35" r="10" fill="#ffa41b" />
+    </svg>
+    <div class="center title" id="endTitle" style="font-size:120px">Remote Desk</div>
+    <div class="center" id="endSub" style="font-size:44px;color:var(--muted);white-space:nowrap">Free &amp; open source · macOS &amp; Windows</div>
+    <div class="center" id="endUrl"><span class="pill">
+      <svg width="34" height="34" viewBox="0 0 24 24"><path fill="#111" d="M12 .5a11.5 11.5 0 0 0-3.6 22.4c.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6A11.5 11.5 0 0 0 12 .5z"/></svg>
+      github.com/Molyn597/remote-desk</span></div>
+  </div>
+</div>
+
+<script>
+// Everything is a pure function of time t (seconds): the same file plays live and renders
+// frame by frame (renderAt(t) in ?render mode).
+const DURATION = 19.4;
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const prog = (t, start, len) => clamp((t - start) / len);
+const lerp = (a, b, p) => a + (b - a) * p;
+const ease = {
+  out: (p) => 1 - Math.pow(1 - p, 3),
+  inOut: (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
+  back: (p) => { const c = 1.7; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); },
+  expo: (p) => (p === 1 ? 1 : 1 - Math.pow(2, -10 * p)),
+};
+const win = (t, a, b, f = 0.35) => Math.min(prog(t, a, f), 1 - prog(t, b - f, f));
+const set = (el, style) => Object.assign(el.style, style);
+
+// Timeline (seconds).
+const T = {
+  intro: [0, 2.7],
+  app: [2.5, 6.2],
+  f1: [6.3, 9.3],
+  f2: [9.1, 11.5],
+  f3: [11.3, 13.7],
+  f4: [13.5, 15.5],
+  f5: [15.3, 17.3],
+  end: 17.1,
+};
+
+// Pieces of the app fly in from different depths and directions.
+const flyEls = [...document.querySelectorAll('[data-fly]')];
+const FLY_FROM = flyEls.map((_, i) => {
+  const a = (i * 137.5 * Math.PI) / 180; // golden-angle spread
+  return { x: Math.cos(a) * 520, y: Math.sin(a) * 340, z: 700 + (i % 3) * 260, r: ((i % 2) * 2 - 1) * (14 + i * 2) };
+});
+
+// Equalizer bars for the sound scene.
+const BARS = 14;
+$('eq').innerHTML = Array.from({ length: BARS }, (_, i) => `<div class="bar-eq" id="eq${i}" style="left:${i * 46}px"></div>`).join('');
+
+function caption(id, t, start) {
+  const c = $(id);
+  const p = ease.out(prog(t, start + 0.15, 0.5));
+  set(c, { opacity: String(p), transform: `translateX(${lerp(-60, 0, p)}px)` });
+}
+
+function render(t) {
+  set($('glow'), { opacity: String(0.7 + 0.3 * Math.sin(t * 1.4)) });
+
+  // ---------- 1 · Logo intro ----------
+  set($('s1'), { opacity: String(win(t, ...T.intro, 0.25) || (t < 0.1 ? 1 : 0)) });
+  const fly = ease.expo(prog(t, 0, 0.9));
+  const lx = lerp(-700, 0, fly) + lerp(0, -330, ease.inOut(prog(t, 1.35, 0.6)));
+  const ly = lerp(420, 0, fly);
+  const press = 1 - 0.12 * Math.sin(Math.PI * prog(t, 0.95, 0.22));
+  set($('logo'), { transform: `translate(${lx}px, ${ly}px) rotate(${lerp(-35, 0, fly)}deg) scale(${press})`, opacity: String(prog(t, 0, 0.15)) });
+  $('dot').setAttribute('r', String(10 * ease.back(prog(t, 1.05, 0.45))));
+  const rp = prog(t, 0.98, 0.7);
+  $('ripple').setAttribute('r', String(6 + 40 * ease.out(rp)));
+  $('ripple').setAttribute('opacity', String(rp > 0 && rp < 1 ? 1 - rp : 0));
+  const wipe = ease.inOut(prog(t, 1.45, 0.7));
+  set($('brand'), { transform: `translate(-170px, -50%) translateX(${lerp(-40, 0, wipe)}px)`, clipPath: `inset(0 ${100 - wipe * 100}% 0 0)`, opacity: String(wipe > 0 ? 1 : 0) });
+
+  // ---------- 2 · App assembles in 3D ----------
+  const [a0, a1] = T.app;
+  // The app is gone once the screen has dipped to black, so the chip's text never fills it.
+  set($('s2'), { opacity: String(Math.min(prog(t, a0, 0.4), 1 - prog(t, 6.02, 0.1))) });
+  set($('dip'), { opacity: String(Math.min(prog(t, 5.9, 0.12), 1 - prog(t, 6.28, 0.2))) });
+  const orbit = prog(t, a0, a1 - a0);
+  // The click on the favorite flows straight into a fast dive through it.
+  const dive = Math.pow(prog(t, 5.66, 0.38), 2.2);
+  // Rotations ease out while the camera centres on the favorite chip and flies into it.
+  // The camera turns to face the chip as the cursor clicks, then accelerates through it.
+  const aim = ease.out(prog(t, 5.45, 0.5));
+  const rx = lerp(lerp(24, 10, ease.out(orbit)), 0, aim);
+  const ry = lerp(lerp(-30, -8, ease.inOut(orbit)), 0, aim);
+  set($('appRig'), {
+    transform: `translateZ(${lerp(0, 2300, dive)}px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${lerp(4, 0, ease.out(orbit))}deg) translate3d(${lerp(0, -255, aim)}px, ${lerp(0, -91, aim)}px, 0)`,
+  });
+  set($('appwin'), { opacity: String(ease.out(prog(t, a0 + 0.05, 0.4))), transform: `translateZ(${lerp(-600, 0, ease.out(prog(t, a0, 0.7)))}px)` });
+  // No overshoot and always a hair in front of the window, so pieces land cleanly
+  // instead of dipping behind the window plane (which made them blink).
+  flyEls.forEach((el, i) => {
+    const raw = prog(t, a0 + 0.35 + i * 0.12, 0.75);
+    const p = ease.expo(raw);
+    const f = FLY_FROM[i];
+    set(el, {
+      transform: `translate3d(${lerp(f.x, 0, p)}px, ${lerp(f.y, 0, p)}px, ${2 + f.z * (1 - p)}px) rotate(${lerp(f.r, 0, p)}deg)`,
+      opacity: String(clamp(raw * 3)),
+    });
+  });
+  // A cursor glides to the favorite and clicks it.
+  const cp = ease.inOut(prog(t, 5.0, 0.65));
+  const click = Math.sin(Math.PI * prog(t, 5.6, 0.16));
+  set($('appCursor'), {
+    transform: `translate3d(${lerp(480, 270, cp)}px, ${lerp(380, 70, cp)}px, 30px) scale(${1 - 0.15 * click})`,
+    opacity: String(prog(t, 5.0, 0.2) * (1 - dive)),
+  });
+  // After the click the chip turns into a plain orange pill (no text) that we fly into.
+  const morph = ease.out(prog(t, 5.68, 0.14));
+  set($('favChip'), {
+    color: `rgba(236,238,240,${1 - morph})`,
+    background: morph > 0 ? `rgb(${lerp(36, 255, morph)},${lerp(38, 164, morph)},${lerp(40, 27, morph)})` : '',
+  });
+  $('favChip').firstElementChild.style.opacity = String(1 - morph);
+  $('favChip').style.boxShadow = t > 5.6 ? `0 0 0 ${3 + 10 * prog(t, 5.6, 0.4)}px rgba(255,164,27,${0.8 * (1 - prog(t, 5.6, 0.5))})` : 'none';
+  const tag = ease.out(prog(t, a0 + 1.6, 0.6));
+  set($('appTag'), { transform: `translate(-50%, ${400 + lerp(30, 0, tag)}px)`, opacity: String(tag * (1 - aim)) });
+
+  // ---------- 3 · Multiple monitors ----------
+  set($('f1'), { opacity: String(win(t, ...T.f1)) });
+  caption('c1', t, T.f1[0]);
+  const m0 = T.f1[0];
+  const o1 = prog(t, m0, 3.1);
+  set($('r1'), { transform: `translate(0px, 60px) rotateX(${lerp(12, 6, o1)}deg) rotateY(${lerp(-18, -8, o1)}deg) translateZ(${lerp(-220, 0, ease.out(prog(t, m0, 0.8)))}px)` });
+  // The remote PC's single monitor splits into two…
+  const split = ease.inOut(prog(t, m0 + 0.6, 0.7));
+  set($('pcA'), { transform: `translateX(${lerp(0, -20, split)}px)` });
+  set($('pcB'), { transform: `translateX(${lerp(0, 410, split)}px) translateZ(-2px)`, opacity: String(clamp(split * 5)) });
+  // …and the Mac shows both side by side.
+  const geo = (a, b, p) => ({ x: lerp(a.x, b.x, p), y: lerp(a.y, b.y, p), w: lerp(a.w, b.w, p), h: lerp(a.h, b.h, p) });
+  const single = { x: 110, y: 80, w: 600, h: 375 };
+  const thumbA = geo(single, { x: 40, y: 150, w: 362, h: 226 }, split);
+  const thumbB = { x: 418, y: 150, w: 362, h: 226 };
+  const place = (el, g) => set(el, { left: `${g.x}px`, top: `${g.y}px`, width: `${g.w}px`, height: `${g.h}px` });
+  place($('thA'), thumbA);
+  place($('thB'), thumbB);
+  set($('thB'), { opacity: String(split), transform: `translateX(${lerp(-30, 0, split)}px)` });
+  // A window moves from monitor 1 to monitor 2, on the PC and on the Mac at the same time.
+  const move = ease.inOut(prog(t, m0 + 1.5, 1.0));
+  set($('pcWin'), { left: `${lerp(80, 80 + 430, move)}px` });
+  set($('pcWin2'), { left: `${lerp(80 - 430, 80, move)}px` });
+  const inThumb = (g) => ({ x: g.x + g.w * (80 / 380), y: g.y + g.h * (60 / 236), w: g.w * (180 / 380), h: g.h * (110 / 236) });
+  const wA = inThumb(thumbA);
+  const wB = inThumb(thumbB);
+  const mw = geo(wA, wB, move);
+  place($('macWin'), mw);
+  set($('macWin'), { transform: `translateY(${-14 * Math.sin(Math.PI * move)}px)` });
+  set($('macCursor'), { left: `${mw.x + mw.w * 0.45}px`, top: `${mw.y + 6 - 14 * Math.sin(Math.PI * move)}px`, opacity: String(prog(t, m0 + 1.1, 0.3)) });
+
+  // ---------- 4 · Drag and drop ----------
+  set($('f2'), { opacity: String(win(t, ...T.f2)) });
+  caption('c2', t, T.f2[0]);
+  const o2 = prog(t, T.f2[0], 2.4);
+  set($('r2'), { transform: `translate(-60px, 110px) rotateX(${lerp(12, 6, o2)}deg) rotateY(${lerp(16, 4, o2)}deg) translateZ(${lerp(-200, 0, ease.out(prog(t, T.f2[0], 0.8)))}px)` });
+  const dp = ease.inOut(prog(t, T.f2[0] + 0.5, 1.0));
+  const fx = lerp(-620, 380, dp);
+  const fy = lerp(60, 40, dp) - 200 * Math.sin(Math.PI * dp);
+  const dropped = prog(t, T.f2[0] + 1.5, 0.3);
+  set($('folder'), { transform: `translate3d(${fx}px, ${fy}px, ${120 * Math.sin(Math.PI * dp)}px) rotate(${lerp(-12, 0, dp)}deg) scale(${1 - 0.6 * ease.out(dropped)})`, opacity: String(1 - dropped) });
+  set($('dragCursor'), { transform: `translate3d(${fx + 90}px, ${fy + 70}px, ${120 * Math.sin(Math.PI * dp) + 10}px)`, opacity: String(1 - prog(t, T.f2[0] + 1.7, 0.3)) });
+  $('dropZone').style.borderColor = `rgba(255,164,27,${0.9 * Math.sin(Math.PI * clamp((dp - 0.5) * 2))})`;
+  $('progress').style.opacity = String(prog(t, T.f2[0] + 1.5, 0.2));
+  $('progressFill').style.width = `${100 * ease.inOut(prog(t, T.f2[0] + 1.6, 0.6))}%`;
+  const saved = ease.back(prog(t, T.f2[0] + 2.0, 0.4));
+  set($('savedToast'), { transform: `translate3d(0, ${lerp(40, 0, saved)}px, 30px)`, opacity: String(clamp(saved * 1.5)) });
+  $('progress').style.opacity = String(prog(t, T.f2[0] + 1.5, 0.2) * (1 - prog(t, T.f2[0] + 2.0, 0.2)));
+
+  // ---------- 5 · Ctrl/Cmd + C ----------
+  set($('f3'), { opacity: String(win(t, ...T.f3)) });
+  caption('c3', t, T.f3[0]);
+  const o3 = prog(t, T.f3[0], 2.4);
+  set($('r3'), { transform: `translate(100px, 120px) rotateX(${lerp(22, 14, o3)}deg) rotateY(${lerp(-14, -4, o3)}deg)` });
+  const k1 = Math.sin(Math.PI * prog(t, T.f3[0] + 0.5, 0.35));
+  const k2 = Math.sin(Math.PI * prog(t, T.f3[0] + 0.65, 0.3));
+  set($('keyCmd'), { transform: `translateY(${12 * k1}px)`, boxShadow: `0 ${16 - 12 * k1}px 0 #0e0f10, 0 30px 60px rgba(0,0,0,.6)`, borderColor: k1 > 0.1 ? '#ffa41b' : '#3a3d42' });
+  set($('keyC'), { transform: `translateY(${12 * k2}px)`, boxShadow: `0 ${16 - 12 * k2}px 0 #0e0f10, 0 30px 60px rgba(0,0,0,.6)`, borderColor: k2 > 0.1 ? '#ffa41b' : '#3a3d42' });
+  const dup = ease.back(prog(t, T.f3[0] + 0.85, 0.6));
+  set($('file1'), { transform: `translate3d(${-20 * dup}px, 0, 0) rotate(${-6 * dup}deg)` });
+  set($('file2'), { transform: `translate3d(${150 * dup}px, ${-30 * dup}px, ${80 * dup}px) rotate(${8 * dup}deg)`, opacity: String(clamp(dup * 2)) });
+  const ts = ease.back(prog(t, T.f3[0] + 1.3, 0.5));
+  set($('toast'), { transform: `translate3d(0, ${lerp(60, 0, ts)}px, 40px) scale(${lerp(0.9, 1, ts)})`, opacity: String(clamp(ts * 1.5)) });
+
+  // ---------- 6 · Sound ----------
+  set($('f4'), { opacity: String(win(t, ...T.f4)) });
+  caption('c4', t, T.f4[0]);
+  const o4 = prog(t, T.f4[0], 2.0);
+  set($('r4'), { transform: `translate(160px, 140px) rotateX(${lerp(10, 4, o4)}deg) rotateY(${lerp(-16, -6, o4)}deg)` });
+  ['w1', 'w2', 'w3'].forEach((id, k) => {
+    const wave = 0.5 + 0.5 * Math.sin((t - T.f4[0]) * 8 - k * 1.1);
+    $(id).setAttribute('opacity', String(t > T.f4[0] + 0.3 ? 0.25 + 0.75 * wave : 0));
+  });
+  for (let i = 0; i < BARS; i++) {
+    const live = prog(t, T.f4[0] + 0.3 + i * 0.03, 0.3);
+    const h = 40 + 220 * Math.abs(Math.sin((t - T.f4[0]) * (5 + (i % 4)) + i * 0.9)) * (0.55 + 0.45 * Math.sin(i * 0.7 + 1));
+    $(`eq${i}`).style.height = `${h * live}px`;
+  }
+
+  // ---------- 7 · Privacy screen ----------
+  set($('f5'), { opacity: String(win(t, ...T.f5)) });
+  caption('c5', t, T.f5[0]);
+  const o5 = prog(t, T.f5[0], 2.0);
+  set($('r5'), { transform: `translate(150px, 120px) rotateX(${lerp(12, 6, o5)}deg) rotateY(${lerp(14, 4, o5)}deg)` });
+  const dark = ease.inOut(prog(t, T.f5[0] + 0.7, 0.5));
+  set($('blackout'), { opacity: String(dark) });
+
+  // ---------- 8 · End card ----------
+  const e0 = T.end;
+  set($('s5'), { opacity: String(prog(t, e0, 0.35)) });
+  const e1 = ease.back(prog(t, e0 + 0.05, 0.6));
+  set($('endLogo'), { transform: `translate(-50%, -50%) translate(-390px, -110px) scale(${e1})` });
+  const e2 = ease.out(prog(t, e0 + 0.25, 0.6));
+  set($('endTitle'), { transform: `translate(-50%, -50%) translate(${85 + lerp(-30, 0, e2)}px, -110px)`, opacity: String(e2) });
+  const e3 = ease.out(prog(t, e0 + 0.6, 0.5));
+  set($('endSub'), { transform: `translate(-50%, -50%) translateY(${40 + lerp(20, 0, e3)}px)`, opacity: String(e3) });
+  const e4 = ease.back(prog(t, e0 + 0.9, 0.6));
+  set($('endUrl'), { transform: `translate(-50%, -50%) translateY(170px) scale(${lerp(0.8, 1, e4)})`, opacity: String(clamp(e4)) });
+}
+
+// Preview: plays in a loop, scaled to the window. ?render: 1:1 for the frame renderer.
+function fit() {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+  $('stage').style.transform = `scale(${s}) translate(-960px, -540px)`;
+}
+const params = new URLSearchParams(location.search);
+if (params.has('render')) {
+  $('stage').style.cssText += ';left:0;top:0;transform:none';
+  window.renderAt = render;
+  render(0);
+} else {
+  fit();
+  addEventListener('resize', fit);
+  // Click anywhere to play with the soundtrack (promo-audio.wav, rendered from sound.js);
+  // the picture follows the audio clock.
+  const audio = new Audio('promo-audio.wav?v=' + Date.now()); // never a stale cached version
+  audio.loop = true;
+  const hint = document.createElement('div');
+  hint.textContent = '▶ Click to play with sound';
+  Object.assign(hint.style, { position: 'fixed', right: '16px', bottom: '14px', padding: '8px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.12)', color: '#fff', font: '13px -apple-system, sans-serif', cursor: 'pointer' });
+  document.body.append(hint);
+  addEventListener('click', () => {
+    if (audio.paused) { audio.currentTime = 0; void audio.play(); hint.textContent = '❚❚ Click to pause'; }
+    else { audio.pause(); hint.textContent = '▶ Click to play with sound'; }
+  });
+  const start = performance.now();
+  const loop = () => {
+    const t = audio.paused ? ((performance.now() - start) / 1000) % DURATION : audio.currentTime % DURATION;
+    render(t);
+    requestAnimationFrame(loop);
+  };
+  loop();
+}
+</script>
+</body>
+</html>

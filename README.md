@@ -8,6 +8,11 @@ someone control your computer — or control theirs. No account, no server to ru
 > Early development. See [SECURITY.md](SECURITY.md) before using it on computers you care about.
 
 <p align="center">
+  <a href="docs/promo/remote-desk-promo.mp4"><img src="docs/promo/remote-desk-promo.gif" width="800" alt="Remote Desk in 20 seconds: favorites, multiple monitors, drag and drop, copy and paste, sound and the privacy screen" /></a>
+  <br /><sub><a href="docs/promo/remote-desk-promo.mp4">Watch with sound (MP4)</a></sub>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/app-home.png" width="800" alt="Remote Desk home screen with your ID and password, the connect form and recent connections" />
 </p>
 
