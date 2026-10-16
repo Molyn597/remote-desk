@@ -146,6 +146,17 @@ const host = new Host(config.platform, {
       deny: t('confirm.deny'),
       remember: visitor.key ? t('confirm.remember') : undefined,
     }),
+  // Input from the viewer is blocked while this is open, so only someone here can approve.
+  confirmFavorite: async (visitor) =>
+    (
+      await window.api.confirmConnection({
+        title: t('favorite.requestTitle'),
+        detail: t('favorite.requestDetail', { who: describeVisitor(visitor) }),
+        allowControl: t('confirm.allowControl'),
+        allowView: t('confirm.allowView'),
+        deny: t('confirm.deny'),
+      })
+    ).choice,
   pickerTitle: () => t('files.pickTitle'),
   onFileSent: (name) => {
     new Notification(t('files.sentTitle'), { body: t('files.sentBody', { name }) });
@@ -211,6 +222,8 @@ const VIEWER_ERRORS: Record<ViewerError, MessageKey> = {
 };
 
 let viewerTrusted = false;
+// Set by the star in the recent list: ask for favorite once this connection is up.
+let favoriteAfterConnect = '';
 
 let viewerPartnerId = '';
 
@@ -229,11 +242,20 @@ const viewer = new Viewer(config.platform, {
     applyTheme();
     window.api.setSessionState('viewer');
     viewerSession = session;
+    const partnerId = viewerPartnerId;
     detachToolbar = attachToolbar(session, {
-      partnerId: viewerPartnerId,
+      partnerId,
       localIsMac: isMac,
       onDisconnect: () => viewer.disconnect(),
+      isFavorite: () => loadMyDevices().some((d) => d.id === partnerId),
+      removeFavorite: () => {
+        removeMyDevice(partnerId);
+        renderMyDevices();
+        renderRecent();
+      },
+      requestFavorite: favoriteAfterConnect === partnerId,
     });
+    favoriteAfterConnect = '';
   },
   onStream: (stream) => {
     video.srcObject = stream;
@@ -273,6 +295,7 @@ const viewer = new Viewer(config.platform, {
       lastConnected: Date.now(),
     });
     renderMyDevices();
+    renderRecent();
   },
 });
 
@@ -412,51 +435,36 @@ async function connectTrusted(device: MyDevice) {
   viewer.connect(settings, device.id, secret, { name: settings.displayName, id: hostId, identity }, true);
 }
 
+const STAR_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
+
+// Favorites: one-click buttons in the connect card for computers that trust this device.
 function renderMyDevices() {
   const devices = loadMyDevices();
-  $('devices-panel').hidden = devices.length === 0;
-  const dateFormat = new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'medium', timeStyle: 'short' });
-  $('devices-list').replaceChildren(
+  $('favorites').hidden = devices.length === 0;
+  $('favorite-chips').replaceChildren(
     ...devices.map((device) => {
-      const row = document.createElement('div');
-      row.className = 'recent-row';
-
-      const label = document.createElement('span');
-      label.className = 'recent-id';
-      label.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
-      const text = document.createElement('span');
-      text.className = 'device-name';
-      const name = document.createElement('strong');
-      name.textContent = device.name || formatId(device.id);
-      text.append(name);
-      if (device.name) {
-        const id = document.createElement('small');
-        id.textContent = formatId(device.id);
-        text.append(id);
-      }
-      label.append(text);
-
-      const date = document.createElement('span');
-      date.className = 'recent-date';
-      date.textContent = device.lastConnected ? dateFormat.format(device.lastConnected) : '';
-
-      const actions = document.createElement('span');
-      actions.className = 'row-actions';
+      const chip = document.createElement('span');
+      chip.className = 'favorite-chip';
       const connect = document.createElement('button');
-      connect.className = 'small-button';
-      connect.textContent = t('recent.connect');
+      connect.type = 'button';
+      connect.className = 'favorite-connect';
+      connect.title = t('favorites.connect', { id: formatId(device.id) });
+      connect.innerHTML = STAR_ICON;
+      connect.append(device.name || formatId(device.id));
       connect.addEventListener('click', () => void connectTrusted(device));
       const remove = document.createElement('button');
-      remove.className = 'small-button remove';
-      remove.textContent = t('recent.remove');
+      remove.type = 'button';
+      remove.className = 'favorite-remove';
+      remove.title = t('favorites.remove');
+      remove.setAttribute('aria-label', t('favorites.remove'));
+      remove.textContent = '×';
       remove.addEventListener('click', () => {
         removeMyDevice(device.id);
         renderMyDevices();
+        renderRecent();
       });
-      actions.append(connect, remove);
-      row.append(label, date, actions);
-      return row;
+      chip.append(connect, remove);
+      return chip;
     }),
   );
   syncTrustedNote();
@@ -491,6 +499,29 @@ function renderRecent() {
 
     const actions = document.createElement('span');
     actions.className = 'row-actions';
+    // Star: favorites connect without a password. Adding one needs a connection (with the
+    // password this time) and approval on the other computer.
+    const isFavorite = loadMyDevices().some((d) => d.id === partner.id);
+    const star = document.createElement('button');
+    star.className = 'star-button';
+    star.classList.toggle('on', isFavorite);
+    star.innerHTML = STAR_ICON;
+    star.title = t(isFavorite ? 'favorites.remove' : 'favorites.add');
+    star.addEventListener('click', () => {
+      if (isFavorite) {
+        removeMyDevice(partner.id);
+        renderMyDevices();
+        renderRecent();
+        return;
+      }
+      favoriteAfterConnect = partner.id;
+      $<HTMLInputElement>('partner-id').value = formatId(partner.id);
+      $<HTMLInputElement>('partner-password').value = '';
+      usePassword = true;
+      syncTrustedNote();
+      $('partner-password').focus();
+      setStatus(t('favorites.enterPassword'));
+    });
     const connect = document.createElement('button');
     connect.className = 'small-button';
     connect.textContent = t('recent.connect');
@@ -510,7 +541,7 @@ function renderRecent() {
     });
     actions.append(connect, remove);
 
-    row.append(id, date, actions);
+    row.append(id, date, star, actions);
     container.append(row);
   }
 }

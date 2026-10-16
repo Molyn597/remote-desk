@@ -9,6 +9,8 @@ import {
   type ClipboardData,
   type Control,
   type DisplayLayout,
+  type FavoriteAnswer,
+  type FavoriteRequest,
   type FileMeta,
   type FileOffer,
   type FileRequest,
@@ -43,6 +45,9 @@ export interface ViewerSession {
   // The host's monitors and which one is shown; sent again after every switch.
   layout?: DisplayLayout;
   onLayout?: () => void;
+  // Ask the host to add it to this device's favorites; it answers after someone approves.
+  requestFavorite(): void;
+  onFavorite?: (accepted: boolean) => void;
   // False when the host granted view-only access or paused control.
   canControl: boolean;
   onControlChange?: (canControl: boolean) => void;
@@ -142,13 +147,21 @@ export class Viewer {
     const request = room.makeAction<FileRequest>('pull');
     const layout = room.makeAction<DisplayLayout>('displays');
     const pair = room.makeAction<Pairing>('pair');
+    const favorite = room.makeAction<FavoriteRequest>('favorite');
+    const favoriteAnswer = room.makeAction<FavoriteAnswer>('favans');
     let acceptFilesUntil = 0;
 
     pair.onMessage = (data, { peerId }) => {
       if (peerId === this.hostPeer && this.connected && isTrustSecret(data?.secret)) {
-        logInfo('viewer', 'host remembered this device (key saved)');
+        logInfo('viewer', 'host trusts this device (favorite)');
         this.events.onPaired(partnerId, data.secret, this.hostName);
+        session?.onFavorite?.(true);
       }
+    };
+    favoriteAnswer.onMessage = (data, { peerId }) => {
+      if (peerId !== this.hostPeer || data?.accepted !== false) return;
+      logInfo('viewer', 'favorite request declined');
+      session?.onFavorite?.(false);
     };
 
     layout.onMessage = (data, { peerId }) => {
@@ -241,6 +254,10 @@ export class Viewer {
         screen: validScreen(data.screen),
         sendInput: (ev) => void input.send(ev, { target: peerId }),
         sendControl: (c) => void control.send(c, { target: peerId }),
+        requestFavorite: () => {
+          logInfo('viewer', 'asking the host to add it to favorites');
+          void favorite.send({ add: true }, { target: peerId });
+        },
         connection: () => this.room?.getPeers()[peerId],
         clipboardEnabled: true,
         shareClipboard: (text) => {

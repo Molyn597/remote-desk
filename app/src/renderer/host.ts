@@ -10,6 +10,8 @@ import {
   type Control,
   type DisplayInfo,
   type DisplayLayout,
+  type FavoriteAnswer,
+  type FavoriteRequest,
   type FileMeta,
   type FileOffer,
   type FileRequest,
@@ -58,6 +60,8 @@ export interface HostSession extends Visitor {
 
 export interface HostEvents {
   confirm(visitor: Visitor): Promise<{ choice: ConfirmChoice; remember: boolean }>;
+  // The connected viewer asks to add this computer to its favorites (no password next time).
+  confirmFavorite(visitor: Visitor): Promise<ConfirmChoice>;
   onSessionChange(session: HostSession | null, error?: 'capture' | 'partnerLeft'): void;
   onFileReceived(name: string, path: string | null): void;
   onFileSent(name: string): void;
@@ -91,6 +95,7 @@ interface Link {
     offer(data: FileOffer[], peerId: string): void;
     layout(data: DisplayLayout, peerId: string): void;
     pair(data: Pairing, peerId: string): void;
+    favorite(data: FavoriteAnswer, peerId: string): void;
     file(offer: FileOffer, peerId: string): Promise<void>;
   };
 }
@@ -114,6 +119,8 @@ export class Host {
   private declined = new Map<string, number>();
   private hostId = '';
   private proofWaiters = new Map<string, (signature: string) => void>();
+  // While the favorite prompt is open the viewer's input is blocked, so it can't approve itself.
+  private approving = false;
 
   constructor(
     private readonly platform: string,
@@ -181,6 +188,8 @@ export class Host {
     const request = room.makeAction<FileRequest>('pull');
     const layout = room.makeAction<DisplayLayout>('displays');
     const pair = room.makeAction<Pairing>('pair');
+    const favorite = room.makeAction<FavoriteRequest>('favorite');
+    const favoriteAnswer = room.makeAction<FavoriteAnswer>('favans');
 
     const link: Link = {
       room,
@@ -195,6 +204,7 @@ export class Host {
         offer: (data, peerId) => void offer.send(data, { target: peerId }),
         layout: (data, peerId) => void layout.send(data, { target: peerId }),
         pair: (data, peerId) => void pair.send(data, { target: peerId }),
+        favorite: (data, peerId) => void favoriteAnswer.send(data, { target: peerId }),
         file: async ({ id }, peerId) => {
           const read = await window.api.readOfferedFile(id);
           if (!read || !this.controlAllowed(peerId, link)) return;
@@ -255,6 +265,9 @@ export class Host {
     input.onMessage = (ev, { peerId }) => {
       if (this.controlAllowed(peerId, link) && ev && typeof ev === 'object') window.api.sendInput(ev);
     };
+    favorite.onMessage = (_, { peerId }) => {
+      if (inSession(peerId)) void this.handleFavorite();
+    };
     control.onMessage = (data, { peerId }) => {
       if (!inSession(peerId)) return;
       if (typeof data?.quality === 'string' && data.quality in QUALITY_PRESETS) {
@@ -293,7 +306,39 @@ export class Host {
 
   private controlAllowed(peerId: string, link: Link) {
     const s = this.session;
-    return Boolean(s && s.peerId === peerId && s.link === link && s.canControl && !s.paused);
+    return Boolean(s && s.peerId === peerId && s.link === link && s.canControl && !s.paused && !this.approving);
+  }
+
+  // Asked from the viewer's toolbar. Someone at this computer has to approve it.
+  private async handleFavorite() {
+    const s = this.session;
+    if (!s || this.approving) return;
+    const { peerId, link } = s;
+    const answer = (accepted: boolean) => link.send.favorite({ accepted }, peerId);
+    const print = s.key ? await fingerprint(s.key).catch(() => undefined) : undefined;
+    if (!print) return answer(false);
+    if (loadTrusted().some((d) => d.fingerprint === print && d.publicKey === s.key)) {
+      link.send.pair({ secret: loadTrustSecret() }, peerId);
+      return answer(true);
+    }
+    logInfo('host', `${s.id || 'viewer'} asks to add this computer to favorites`);
+    this.approving = true;
+    let choice: ConfirmChoice = 'deny';
+    try {
+      choice = await this.events.confirmFavorite(s);
+      if (choice !== 'deny' && !(await this.verifyPeer({ peerId, link }, s.key!))) choice = 'deny';
+    } finally {
+      this.approving = false;
+    }
+    logInfo('host', `favorite request ${choice === 'deny' ? 'declined' : `allowed (${choice})`}`);
+    if (this.session !== s) return;
+    if (choice === 'deny') return answer(false);
+    addTrusted({ fingerprint: print, publicKey: s.key!, name: s.name, id: s.id, control: choice === 'control', added: Date.now() });
+    this.syncTrustedRoom();
+    s.trusted = true;
+    this.events.onSessionChange({ ...s });
+    link.send.pair({ secret: loadTrustSecret() }, peerId);
+    answer(true);
   }
 
   setPaused(paused: boolean) {

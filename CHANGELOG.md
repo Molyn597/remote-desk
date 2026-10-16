@@ -3,6 +3,17 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.9] - 2026-10-16
+
+### Added
+
+- Favorites: click the star in the session toolbar (or next to a computer in Recent) to ask for a favorite. Someone at the other computer approves it, and remote control is paused while they decide. Favorites sit right below the ID field and connect with one click, without a password.
+
+### Changed
+
+- "My devices" is now Favorites inside the connect card, and Trusted devices is now "Who has this computer as a favorite".
+- An unanswered connection or favorite prompt closes by itself after a minute and counts as Deny.
+
 ## [0.1.8] - 2026-10-16
 
 ### Changed

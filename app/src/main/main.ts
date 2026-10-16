@@ -389,6 +389,8 @@ app.whenReady().then(async () => {
       message: text.title,
       detail: text.detail,
       ...(text.remember ? { checkboxLabel: text.remember, checkboxChecked: false } : {}),
+      // Nobody answering counts as Deny.
+      signal: AbortSignal.timeout(60_000),
     });
     const choice = choices[response] ?? 'deny';
     return { choice, remember: choice !== 'deny' && checkboxChecked };

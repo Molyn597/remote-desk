@@ -10,7 +10,7 @@ no server of your own — just an ID and a password.
 1. [Install](#install)
 2. [Let someone control this computer](#let-someone-control-this-computer)
 3. [Control another computer](#control-another-computer)
-4. [Connect without a password](#connect-without-a-password)
+4. [Favorites: connect without a password](#favorites-connect-without-a-password)
 5. [Session toolbar](#session-toolbar)
 6. [Settings](#settings)
 7. [Safety](#safety)
@@ -79,19 +79,24 @@ in the toolbar.
 Under **Settings → Your name** you can set the name your partner sees in the connection prompt.
 It's optional; without it only your ID is shown.
 
-## Connect without a password
+## Favorites: connect without a password
 
 For your own computers, or people you help often:
 
-1. Connect once with the ID and password. When allowing the connection, the person at the other
-   computer ticks **Remember this device**.
-2. That computer now appears under **My devices** on your home page. Click **Connect** and you are
-   in: no password and no prompt. The session panel still shows the connection on the other computer.
-3. To reach a computer while nobody is there, turn on **Start at login and run in the background**
+1. While connected, click the **star** in the session toolbar. You can also click the star next to
+   a computer in **Recent connections** and connect with the password; the request is sent once
+   you are connected.
+2. Someone at the other computer approves it (**Allow control** or **View only**). Remote control
+   is paused while the question is open, so it can't be approved from your side.
+3. The computer appears under **Favorites** below the ID field. Click it and you are in: no password
+   and no prompt. Typing its ID also hides the password field. The session panel still shows the
+   connection on the other computer.
+4. To reach a computer while nobody is there, turn on **Start at login and run in the background**
    in its Settings. Closing the window then keeps Remote Desk running in the menu bar (Mac) or the
    system tray (Windows).
-4. To revoke access, remove the device in **Settings → Trusted devices** on that computer.
-   **Remove all and replace the key** revokes every device at once.
+5. Favorites work one way. To connect the other way round, add a favorite from the other computer too.
+6. To revoke access, remove the device in **Settings → Who has this computer as a favorite** on
+   that computer. **Remove all and replace the key** revokes every device at once.
 
 The connection uses a separate key that the other computer hands to your device. It is stored
 encrypted by your system (Keychain on macOS, DPAPI on Windows), and on its own it is not enough:

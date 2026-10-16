@@ -40,6 +40,10 @@ export const MAX_NAME_LENGTH = 40;
 // encrypted with a secret the host hands out when it remembers the device.
 export const trustedRoom = (hostId: string) => `${hostId}:trusted`;
 export type Pairing = { secret: string };
+// Viewer -> host during a session: please add me to favorites (connect without a password).
+// Host -> viewer: the answer; an accepted request is followed by the room key ('pair').
+export type FavoriteRequest = { add: true };
+export type FavoriteAnswer = { accepted: boolean };
 export const isTrustSecret = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{43}$/.test(v);
 
 // Shared clipboard (text only), sent both ways while remote control is allowed.

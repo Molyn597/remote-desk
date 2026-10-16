@@ -39,12 +39,13 @@ const cs: Section[] = [
     ],
   },
   {
-    title: 'Připojení bez hesla',
+    title: 'Oblíbené: připojení bez hesla',
     steps: [
-      'Při prvním připojení musí partner u svého počítače zaškrtnout „Pamatovat si toto zařízení“.',
-      'Jeho počítač se vám pak objeví v sekci Moje zařízení na hlavní stránce. Příště se připojíte jedním kliknutím, bez hesla a bez dotazu.',
+      'Během připojení klikněte v liště na hvězdičku (nebo na hvězdičku u počítače v Nedávných a připojte se heslem).',
+      'Na druhém počítači musí někdo žádost schválit. Do té doby je vzdálené ovládání pozastavené.',
+      'Počítač se vám pak objeví v Oblíbených pod polem ID. Příště se připojíte jedním kliknutím, bez hesla a bez dotazu.',
       'Aby to šlo i v době, kdy u počítače nikdo není, zapněte na něm v Nastavení „Spouštět po přihlášení a běžet na pozadí“.',
-      'Přístup zrušíte na tom počítači v Nastavení → Důvěryhodná zařízení. Tlačítko „Odebrat vše a vyměnit klíč“ ho sebere všem najednou.',
+      'Funguje to jedním směrem; pro opačný směr udělejte totéž z druhého počítače. Přístup zrušíte v Nastavení → Kdo má tento počítač v oblíbených.',
     ],
   },
   {
@@ -105,12 +106,13 @@ const en: Section[] = [
     ],
   },
   {
-    title: 'Connect without a password',
+    title: 'Favorites: connect without a password',
     steps: [
-      'The first time, your partner ticks “Remember this device” at their computer when allowing the connection.',
-      'Their computer then appears under My devices on the home page. Next time you connect with one click, no password and no prompt.',
+      'While connected, click the star in the toolbar (or the star next to a computer in Recent, then connect with the password).',
+      'Someone at the other computer has to approve it. Remote control is paused until they do.',
+      'The computer then appears in Favorites below the ID field. Next time you connect with one click, no password and no prompt.',
       'For access while nobody is at that computer, turn on “Start at login and run in the background” in its Settings.',
-      'To revoke access, use Settings → Trusted devices on that computer. “Remove all and replace the key” revokes every device at once.',
+      'It works one way; for the other direction do the same from the other computer. Revoke access in Settings → Who has this computer as a favorite.',
     ],
   },
   {

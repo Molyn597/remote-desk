@@ -707,7 +707,7 @@ h3 {
 .table-head,
 .recent-row {
   display: grid;
-  grid-template-columns: 1.2fr 1fr auto;
+  grid-template-columns: 1.2fr 1fr auto auto;
   align-items: center;
   gap: 16px;
 }
@@ -1623,29 +1623,6 @@ html:not(:fullscreen) .platform-linux .viewer-drag {
   display: block;
 }
 
-/* My devices: computers that trust this one. */
-.devices-hint {
-  margin: -4px 0 8px 16px;
-}
-
-.device-name {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.device-name strong {
-  overflow: hidden;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.device-name small {
-  color: var(--muted);
-  font-size: 12px;
-}
-
 #trusted-reset {
   margin-top: 10px;
 }
@@ -1713,4 +1690,122 @@ html:not(:fullscreen) .platform-linux .viewer-drag {
 
 .trusted-note span {
   color: var(--text);
+}
+
+/* Favorite star in the session toolbar */
+.tool.favorite-on svg {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.tool.pending svg {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Favorites in the connect card */
+.favorites {
+  margin-top: 18px;
+}
+
+.favorites-label {
+  display: block;
+  margin: 0 0 8px 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.favorite-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.favorite-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: 999px;
+  background: var(--pill);
+}
+
+.favorite-connect {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 4px 9px 14px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.favorite-connect svg,
+.star-button svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: var(--accent);
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.favorite-chip:hover {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.favorite-remove {
+  width: 30px;
+  height: 30px;
+  margin-right: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.favorite-remove:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.star-button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+}
+
+.star-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--muted);
+}
+
+.star-button:hover svg {
+  stroke: var(--accent);
+}
+
+.star-button.on svg {
+  fill: var(--accent);
+  stroke: var(--accent);
 }

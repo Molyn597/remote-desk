@@ -37,7 +37,14 @@ export interface ToolbarOptions {
   partnerId: string;
   localIsMac: boolean;
   onDisconnect(): void;
+  // Favorites: computers this device connects to without a password.
+  isFavorite(): boolean;
+  removeFavorite(): void;
+  // Send the favorite request right away (chosen from the recent list before connecting).
+  requestFavorite?: boolean;
 }
+
+const FAVORITE_TIMEOUT_MS = 75_000;
 
 // Floating session toolbar for the viewer; returns a cleanup function.
 export function attachToolbar(session: ViewerSession, options: ToolbarOptions): () => void {
@@ -306,6 +313,51 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     }, 'image/png');
   });
 
+  // Favorite star: ask the host, which has to approve it there.
+  const star = $('tool-favorite');
+  let favorite: 'none' | 'pending' | 'yes' = options.isFavorite() ? 'yes' : 'none';
+  let favoriteTimer = 0;
+  const renderStar = () => {
+    star.classList.toggle('favorite-on', favorite === 'yes');
+    star.classList.toggle('pending', favorite === 'pending');
+    star.title = t(favorite === 'yes' ? 'toolbar.unfavorite' : favorite === 'pending' ? 'favorite.pending' : 'toolbar.favorite');
+  };
+  const askFavorite = () => {
+    favorite = 'pending';
+    renderStar();
+    session.requestFavorite();
+    showTransfer(t('favorite.pending'), false, 15000);
+    clearTimeout(favoriteTimer);
+    favoriteTimer = window.setTimeout(() => {
+      if (favorite !== 'pending') return;
+      favorite = 'none';
+      renderStar();
+      showTransfer(t('favorite.noAnswer'), true, 6000);
+    }, FAVORITE_TIMEOUT_MS);
+  };
+  session.onFavorite = (accepted) => {
+    clearTimeout(favoriteTimer);
+    const was = favorite;
+    favorite = accepted ? 'yes' : 'none';
+    renderStar();
+    if (accepted && was !== 'yes') showTransfer(t('favorite.added'), false, 5000);
+    if (!accepted && was === 'pending') showTransfer(t('favorite.declined'), true, 6000);
+  };
+  onClick('tool-favorite', () => {
+    if (favorite === 'pending') return;
+    if (favorite === 'yes') {
+      options.removeFavorite();
+      favorite = 'none';
+      renderStar();
+      showTransfer(t('favorite.removed'), false, 4000);
+    } else askFavorite();
+  });
+  renderStar();
+  cleanups.push(() => {
+    clearTimeout(favoriteTimer);
+    session.onFavorite = undefined;
+  });
+
   // Shared clipboard on/off for this session.
   onClick('tool-clipboard', () => {
     session.clipboardEnabled = !session.clipboardEnabled;
@@ -490,6 +542,9 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   });
 
   video.focus();
+
+  // Requested from the recent list: ask as soon as the session is up.
+  if (options.requestFavorite && favorite === 'none') askFavorite();
 
   return () => {
     for (const fn of cleanups.reverse()) fn();

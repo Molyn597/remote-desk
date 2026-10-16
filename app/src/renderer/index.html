@@ -173,15 +173,11 @@
                 </div>
                 <p class="form-status" id="connect-status" role="status"></p>
               </form>
+              <div class="favorites" id="favorites" hidden>
+                <span class="favorites-label" data-i18n="favorites.title"></span>
+                <div class="favorite-chips" id="favorite-chips"></div>
+              </div>
             </article>
-          </div>
-
-          <div class="panel recent-panel" id="devices-panel" hidden>
-            <div class="section-head">
-              <h3 data-i18n="devices.title"></h3>
-            </div>
-            <p class="hint devices-hint" data-i18n="devices.hint"></p>
-            <div id="devices-list"></div>
           </div>
 
           <div class="panel recent-panel">
@@ -191,6 +187,7 @@
             <div class="table-head">
               <span data-i18n="recent.partner"></span>
               <span data-i18n="recent.last"></span>
+              <span></span>
               <span></span>
             </div>
             <div id="recent-list"></div>
@@ -423,6 +420,9 @@
 
       <div class="toolbar" id="toolbar">
         <span class="toolbar-title" id="viewer-title"></span>
+        <button class="tool favorite-tool" id="tool-favorite">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" /></svg>
+        </button>
         <span class="conn" id="conn-info"><span class="dot"></span><span id="conn-text">…</span></span>
         <span class="transfer" id="transfer-status" hidden></span>
         <span class="transfer offer" id="file-offer" hidden>
