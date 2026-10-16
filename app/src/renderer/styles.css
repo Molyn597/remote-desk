@@ -1444,3 +1444,217 @@ html:not(:fullscreen) .platform-linux .viewer-drag {
 .display-chip:hover {
   opacity: 1;
 }
+
+/* Drop-down menus in the app's style (replacing native select pop-ups). */
+.select {
+  position: relative;
+}
+
+.select-button {
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--pill);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+}
+
+.select-button:focus-visible,
+.select-button[aria-expanded='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  outline: none;
+}
+
+.select-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.select-button[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.select-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  padding: 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 18%);
+}
+
+.select-menu button {
+  width: 100%;
+  display: block;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+.select-menu button:hover,
+.select-menu button:focus-visible {
+  background: var(--pill);
+  outline: none;
+}
+
+.select-menu button.selected {
+  background: var(--text);
+  color: var(--bg);
+}
+
+#update-get {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+#update-get svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#update-get:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+#update-get.accent-button {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+#update-get.accent-button:not(:disabled):hover {
+  filter: brightness(1.05);
+}
+
+.card .form-actions {
+  flex-wrap: wrap;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Password with a show/hide button. */
+.password-field {
+  position: relative;
+  margin-top: 10px;
+}
+
+.password-field .pill-input {
+  padding-right: 60px;
+}
+
+.reveal-button {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  transform: translateY(-50%);
+}
+
+.reveal-button:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.reveal-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.reveal-button .eye-closed,
+.reveal-button.shown .eye-open {
+  display: none;
+}
+
+.reveal-button.shown .eye-closed {
+  display: block;
+}
+
+/* My devices: computers that trust this one. */
+.devices-hint {
+  margin: -4px 0 8px 16px;
+}
+
+.device-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.device-name strong {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-name small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#trusted-reset {
+  margin-top: 10px;
+}
+
+.background-option {
+  margin-top: 18px;
+}
+
+.background-option .hint {
+  display: block;
+  margin-top: 2px;
+}

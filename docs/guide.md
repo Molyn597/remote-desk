@@ -10,10 +10,11 @@ no server of your own — just an ID and a password.
 1. [Install](#install)
 2. [Let someone control this computer](#let-someone-control-this-computer)
 3. [Control another computer](#control-another-computer)
-4. [Session toolbar](#session-toolbar)
-5. [Settings](#settings)
-6. [Safety](#safety)
-7. [Troubleshooting](#troubleshooting)
+4. [Connect without a password](#connect-without-a-password)
+5. [Session toolbar](#session-toolbar)
+6. [Settings](#settings)
+7. [Safety](#safety)
+8. [Troubleshooting](#troubleshooting)
 
 ## Install
 
@@ -77,6 +78,24 @@ in the toolbar.
 
 Under **Settings → Your name** you can set the name your partner sees in the connection prompt.
 It's optional; without it only your ID is shown.
+
+## Connect without a password
+
+For your own computers, or people you help often:
+
+1. Connect once with the ID and password. When allowing the connection, the person at the other
+   computer ticks **Remember this device**.
+2. That computer now appears under **My devices** on your home page. Click **Connect** and you are
+   in: no password and no prompt. The session panel still shows the connection on the other computer.
+3. To reach a computer while nobody is there, turn on **Start at login and run in the background**
+   in its Settings. Closing the window then keeps Remote Desk running in the menu bar (Mac) or the
+   system tray (Windows).
+4. To revoke access, remove the device in **Settings → Trusted devices** on that computer.
+   **Remove all and replace the key** revokes every device at once.
+
+The connection uses a separate key that the other computer hands to your device. It is stored
+encrypted by your system (Keychain on macOS, DPAPI on Windows), and on its own it is not enough:
+your device also has to prove it holds its own private key.
 
 ## Session toolbar
 

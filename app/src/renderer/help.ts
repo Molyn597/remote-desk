@@ -39,6 +39,15 @@ const cs: Section[] = [
     ],
   },
   {
+    title: 'Připojení bez hesla',
+    steps: [
+      'Při prvním připojení musí partner u svého počítače zaškrtnout „Pamatovat si toto zařízení“.',
+      'Jeho počítač se vám pak objeví v sekci Moje zařízení na hlavní stránce. Příště se připojíte jedním kliknutím, bez hesla a bez dotazu.',
+      'Aby to šlo i v době, kdy u počítače nikdo není, zapněte na něm v Nastavení „Spouštět po přihlášení a běžet na pozadí“.',
+      'Přístup zrušíte na tom počítači v Nastavení → Důvěryhodná zařízení. Tlačítko „Odebrat vše a vyměnit klíč“ ho sebere všem najednou.',
+    ],
+  },
+  {
     title: 'Lišta během relace',
     steps: [
       'Přizpůsobit oknu nebo skutečná velikost (v ní se obraz posouvá u okrajů).',
@@ -92,6 +101,15 @@ const en: Section[] = [
       'Wait until your partner allows the connection. Then you see their screen and can use the mouse and keyboard.',
       'Click into the picture to take over the keyboard. Shortcuts like Cmd+C or Ctrl+C are sent to the remote computer.',
       'Recent connections are listed at the bottom of the home page; just add the password. In Settings you can set the name your partner sees.',
+    ],
+  },
+  {
+    title: 'Connect without a password',
+    steps: [
+      'The first time, your partner ticks “Remember this device” at their computer when allowing the connection.',
+      'Their computer then appears under My devices on the home page. Next time you connect with one click, no password and no prompt.',
+      'For access while nobody is at that computer, turn on “Start at login and run in the background” in its Settings.',
+      'To revoke access, use Settings → Trusted devices on that computer. “Remove all and replace the key” revokes every device at once.',
     ],
   },
   {

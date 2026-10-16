@@ -10,7 +10,8 @@ export type Hello = { role: Role; platform: string; name?: string; id?: string; 
 export type Challenge = { nonce: string };
 export type Proof = { signature: string };
 
-export type AnswerReason = 'declined' | 'busy' | 'capture';
+// 'untrusted': a device that is no longer trusted tried the trusted-device room.
+export type AnswerReason = 'declined' | 'busy' | 'capture' | 'untrusted';
 // `control: false` means the host granted view-only access. `screen` is the captured size in pixels.
 export type Answer = {
   accepted: boolean;
@@ -34,6 +35,12 @@ export const ALL_DISPLAYS = 'all';
 export type DisplayLayout = { displays: DisplayInfo[]; view: string; screen: { width: number; height: number } };
 
 export const MAX_NAME_LENGTH = 40;
+
+// Trusted devices connect without the password through a second room of the host,
+// encrypted with a secret the host hands out when it remembers the device.
+export const trustedRoom = (hostId: string) => `${hostId}:trusted`;
+export type Pairing = { secret: string };
+export const isTrustSecret = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{43}$/.test(v);
 
 // Shared clipboard (text only), sent both ways while remote control is allowed.
 export type ClipboardData = { text: string };

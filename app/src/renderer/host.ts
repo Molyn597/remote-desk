@@ -15,15 +15,17 @@ import {
   type FileRequest,
   type Hello,
   type InputEvent,
+  type Pairing,
   type Proof,
   type Quality,
   type SessionStatus,
+  trustedRoom,
 } from '../../../shared/protocol';
 import type { ConfirmChoice } from '../preload/api';
 import { captureView, type Capture } from './capture';
 import { challengeText, fingerprint, newNonce, verify } from './identity';
 import { join } from './network';
-import { addTrusted, loadTrusted, touchTrusted, type Settings } from './settings';
+import { addTrusted, loadTrusted, loadTrustSecret, touchTrusted, type Settings } from './settings';
 
 // Encoding a full Retina/4K screen is slow; "auto" and "speed" downscale it for low latency.
 const QUALITY_PRESETS: Record<
@@ -72,29 +74,45 @@ const cleanId = (value: unknown) => (/^\d{9}$/.test(String(value)) ? String(valu
 const cleanKey = (value: unknown) =>
   typeof value === 'string' && value.length < 300 && /^[A-Za-z0-9+/]+={0,2}$/.test(value) ? value : undefined;
 
-// Waits in the room named after this computer's ID and serves one viewer at a time.
+
+// One joined room and how to talk to peers in it.
+interface Link {
+  room: Room;
+  // The trusted-device room: only remembered devices that prove their key get in.
+  trustedOnly: boolean;
+  send: {
+    hello(data: Hello, peerId: string): void;
+    answer(data: Answer, peerId: string): void;
+    status(data: SessionStatus, peerId: string): void;
+    bye(peerId: string): void;
+    challenge(data: Challenge, peerId: string): void;
+    clip(data: ClipboardData, peerId: string): void;
+    offer(data: FileOffer[], peerId: string): void;
+    layout(data: DisplayLayout, peerId: string): void;
+    pair(data: Pairing, peerId: string): void;
+    file(offer: FileOffer, peerId: string): Promise<void>;
+  };
+}
+
+type Peer = { peerId: string; link: Link };
+
+// Waits in the room named after this computer's ID (password) and, once some device is
+// trusted, in the trusted-device room too. Serves one viewer at a time.
 export class Host {
-  private room?: Room;
-  private session?: HostSession & { peerId: string };
-  private pendingPeer?: string;
+  private links: Link[] = [];
+  private trustedLink?: Link;
+  private settings?: Settings;
+  private session?: HostSession & Peer;
+  private pending?: Peer;
   private stream?: MediaStream;
   private capture?: Capture;
   private displays: DisplayInfo[] = [];
   private view = '';
   private quality: Quality = 'auto';
   private switching = Promise.resolve();
-  private sendLayout?: (data: DisplayLayout, peerId: string) => void;
   private declined = new Map<string, number>();
   private hostId = '';
   private proofWaiters = new Map<string, (signature: string) => void>();
-  private sendChallenge?: (data: Challenge, peerId: string) => void;
-  private sendClip?: (data: ClipboardData, peerId: string) => void;
-  private sendOffer?: (data: FileOffer[], peerId: string) => void;
-  private sendFileTo?: (offer: FileOffer, peerId: string) => Promise<void>;
-  private sendHello?: (data: Hello, peerId: string) => void;
-  private sendAnswer?: (data: Answer, peerId: string) => void;
-  private sendStatus?: (data: SessionStatus, peerId: string) => void;
-  private sendBye?: (peerId: string) => void;
 
   constructor(
     private readonly platform: string,
@@ -102,15 +120,48 @@ export class Host {
   ) {}
 
   get active() {
-    return Boolean(this.session || this.pendingPeer);
+    return Boolean(this.session || this.pending);
   }
 
   async start(settings: Settings, id: string, password: string) {
     await this.stop();
     this.hostId = id;
-    const room = join(settings, id, password);
-    this.room = room;
+    this.settings = settings;
+    this.links = [this.openRoom(join(settings, id, password), false)];
+    this.syncTrustedRoom();
+  }
 
+  // Joins the trusted-device room while any device is trusted, leaves it when none is.
+  syncTrustedRoom() {
+    if (!this.settings) return;
+    const wanted = loadTrusted().length > 0;
+    if (wanted && !this.trustedLink) {
+      const room = join(this.settings, trustedRoom(this.hostId), loadTrustSecret());
+      this.trustedLink = this.openRoom(room, true);
+      this.links.push(this.trustedLink);
+    } else if (!wanted && this.trustedLink && this.session?.link !== this.trustedLink) {
+      const link = this.trustedLink;
+      this.trustedLink = undefined;
+      this.links = this.links.filter((l) => l !== link);
+      if (this.pending?.link === link) this.pending = undefined;
+      void link.room.leave();
+    }
+  }
+
+  // After the trust secret was replaced the trusted room must be rejoined with the new key.
+  async restartTrustedRoom() {
+    const link = this.trustedLink;
+    if (link) {
+      if (this.session?.link === link) this.endSession(true);
+      if (this.pending?.link === link) this.pending = undefined;
+      this.trustedLink = undefined;
+      this.links = this.links.filter((l) => l !== link);
+      await link.room.leave();
+    }
+    this.syncTrustedRoom();
+  }
+
+  private openRoom(room: Room, trustedOnly: boolean): Link {
     const hello = room.makeAction<Hello>('hello');
     const answer = room.makeAction<Answer>('answer');
     const status = room.makeAction<SessionStatus>('status');
@@ -125,38 +176,49 @@ export class Host {
     const offer = room.makeAction<FileOffer[]>('offer');
     const request = room.makeAction<FileRequest>('pull');
     const layout = room.makeAction<DisplayLayout>('displays');
-    this.sendLayout = (data, peerId) => void layout.send(data, { target: peerId });
-    this.sendClip = (data, peerId) => void clip.send(data, { target: peerId });
-    this.sendOffer = (data, peerId) => void offer.send(data, { target: peerId });
-    this.sendFileTo = async ({ id }, peerId) => {
-      const read = await window.api.readOfferedFile(id);
-      if (!read || !this.controlAllowed(peerId)) return;
-      const meta: FileMeta = { name: read.name, size: read.data.byteLength };
-      await file.send(read.data, { target: peerId, metadata: meta });
-      this.events.onFileSent(read.name);
+    const pair = room.makeAction<Pairing>('pair');
+
+    const link: Link = {
+      room,
+      trustedOnly,
+      send: {
+        hello: (data, peerId) => void hello.send(data, { target: peerId }),
+        answer: (data, peerId) => void answer.send(data, { target: peerId }),
+        status: (data, peerId) => void status.send(data, { target: peerId }),
+        bye: (peerId) => void bye.send(null, { target: peerId }),
+        challenge: (data, peerId) => void challenge.send(data, { target: peerId }),
+        clip: (data, peerId) => void clip.send(data, { target: peerId }),
+        offer: (data, peerId) => void offer.send(data, { target: peerId }),
+        layout: (data, peerId) => void layout.send(data, { target: peerId }),
+        pair: (data, peerId) => void pair.send(data, { target: peerId }),
+        file: async ({ id }, peerId) => {
+          const read = await window.api.readOfferedFile(id);
+          if (!read || !this.controlAllowed(peerId, link)) return;
+          const meta: FileMeta = { name: read.name, size: read.data.byteLength };
+          await file.send(read.data, { target: peerId, metadata: meta });
+          this.events.onFileSent(read.name);
+        },
+      },
     };
+    const inSession = (peerId: string) => this.session?.peerId === peerId && this.session.link === link;
+
     // The viewer asks for files copied here, or for a picker on this screen.
     request.onMessage = async (data, { peerId }) => {
-      if (!this.controlAllowed(peerId)) return;
+      if (!this.controlAllowed(peerId, link)) return;
       const offers = data?.pick
         ? await window.api.pickFilesToSend(this.events.pickerTitle())
         : (Array.isArray(data?.ids) ? data.ids : []).slice(0, 20).map((id) => ({ id: String(id), name: '', size: 0 }));
       for (const item of offers) {
-        if (!this.controlAllowed(peerId)) break;
-        await this.sendFileTo?.(item, peerId).catch(console.error);
+        if (!this.controlAllowed(peerId, link)) break;
+        await link.send.file(item, peerId).catch(console.error);
       }
     };
-    this.sendChallenge = (data, peerId) => void challenge.send(data, { target: peerId });
-    this.sendHello = (data, peerId) => void hello.send(data, { target: peerId });
-    this.sendAnswer = (data, peerId) => void answer.send(data, { target: peerId });
-    this.sendStatus = (data, peerId) => void status.send(data, { target: peerId });
-    this.sendBye = (peerId) => void bye.send(null, { target: peerId });
-
-    room.onPeerJoin = (peerId) => this.sendHello?.({ role: 'host', platform: this.platform }, peerId);
-    room.onPeerLeave = (peerId) => this.peerGone(peerId);
+    room.onPeerJoin = (peerId) =>
+      link.send.hello({ role: 'host', platform: this.platform, name: this.settings?.displayName || undefined }, peerId);
+    room.onPeerLeave = (peerId) => this.peerGone(peerId, link);
     hello.onMessage = (data, { peerId }) => {
       if (data?.role !== 'viewer') return;
-      void this.handleRequest(peerId, String(data.platform ?? '').slice(0, 20), {
+      void this.handleRequest({ peerId, link }, String(data.platform ?? '').slice(0, 20), {
         name: cleanName(data.name),
         id: cleanId(data.id),
         key: cleanKey(data.key),
@@ -164,14 +226,14 @@ export class Host {
     };
     clip.onMessage = (data, { peerId }) => {
       const text = data?.text;
-      if (this.controlAllowed(peerId) && typeof text === 'string' && text.length <= MAX_CLIPBOARD_CHARS) {
+      if (this.controlAllowed(peerId, link) && typeof text === 'string' && text.length <= MAX_CLIPBOARD_CHARS) {
         window.api.writeClipboard(text);
       }
     };
     // Files are refused before any data arrives unless the sender may control this computer.
-    file.onReceive = ({ peerId, byteLength }) => this.controlAllowed(peerId) && byteLength <= MAX_FILE_BYTES;
+    file.onReceive = ({ peerId, byteLength }) => this.controlAllowed(peerId, link) && byteLength <= MAX_FILE_BYTES;
     file.onMessage = async (data, { peerId, metadata }) => {
-      if (!this.controlAllowed(peerId)) return;
+      if (!this.controlAllowed(peerId, link)) return;
       const name = String((metadata as FileMeta | undefined)?.name ?? 'file').slice(0, 200);
       const buffer = data instanceof ArrayBuffer ? data : new Uint8Array(data as ArrayBufferLike).slice().buffer;
       const path = await window.api.saveReceivedFile(name, buffer).catch(() => null);
@@ -182,28 +244,28 @@ export class Host {
       const waiter = this.proofWaiters.get(peerId);
       if (waiter && typeof data?.signature === 'string' && data.signature.length < 200) waiter(data.signature);
     };
-    bye.onMessage = (_, { peerId }) => this.peerGone(peerId);
+    bye.onMessage = (_, { peerId }) => this.peerGone(peerId, link);
     input.onMessage = (ev, { peerId }) => {
-      const s = this.session;
-      if (s && peerId === s.peerId && s.canControl && !s.paused && ev && typeof ev === 'object') {
-        window.api.sendInput(ev);
-      }
+      if (this.controlAllowed(peerId, link) && ev && typeof ev === 'object') window.api.sendInput(ev);
     };
     control.onMessage = (data, { peerId }) => {
-      if (peerId !== this.session?.peerId) return;
+      if (!inSession(peerId)) return;
       if (typeof data?.quality === 'string' && data.quality in QUALITY_PRESETS) {
         this.quality = data.quality;
-        void this.tuneSender(peerId);
+        void this.tuneSender();
       }
       if (typeof data?.view === 'string') this.switchView(peerId, data.view);
     };
+    return link;
   }
 
   async stop() {
     this.endSession(false);
-    this.pendingPeer = undefined;
-    await this.room?.leave();
-    this.room = undefined;
+    this.pending = undefined;
+    const links = this.links;
+    this.links = [];
+    this.trustedLink = undefined;
+    await Promise.all(links.map((l) => l.room.leave()));
   }
 
   disconnect() {
@@ -212,71 +274,82 @@ export class Host {
 
   // Tells the viewer about files copied on this computer; nothing is sent until it asks.
   offerFiles(offers: FileOffer[]) {
-    const peerId = this.session?.peerId;
-    if (peerId && this.controlAllowed(peerId)) this.sendOffer?.(offers, peerId);
+    const s = this.session;
+    if (s && this.controlAllowed(s.peerId, s.link)) s.link.send.offer(offers, s.peerId);
   }
 
   // Sends this computer's clipboard to the viewer; only while it may control us.
   shareClipboard(text: string) {
-    const peerId = this.session?.peerId;
-    if (peerId && this.controlAllowed(peerId)) this.sendClip?.({ text }, peerId);
+    const s = this.session;
+    if (s && this.controlAllowed(s.peerId, s.link)) s.link.send.clip({ text }, s.peerId);
   }
 
-  private controlAllowed(peerId: string) {
+  private controlAllowed(peerId: string, link: Link) {
     const s = this.session;
-    return Boolean(s && s.peerId === peerId && s.canControl && !s.paused);
+    return Boolean(s && s.peerId === peerId && s.link === link && s.canControl && !s.paused);
   }
 
   setPaused(paused: boolean) {
     const s = this.session;
     if (!s || !s.canControl || s.paused === paused) return;
     s.paused = paused;
-    this.sendStatus?.({ control: !paused }, s.peerId);
+    s.link.send.status({ control: !paused }, s.peerId);
     this.events.onSessionChange({ ...s });
   }
 
-  private async handleRequest(peerId: string, viewerPlatform: string, visitor: Visitor) {
+  private isPending({ peerId, link }: Peer) {
+    return this.pending?.peerId === peerId && this.pending.link === link;
+  }
+
+  private async handleRequest(peer: Peer, viewerPlatform: string, visitor: Visitor) {
+    const { peerId, link } = peer;
     if (this.active) {
-      if (peerId !== this.pendingPeer && peerId !== this.session?.peerId) {
-        this.sendAnswer?.({ accepted: false, reason: 'busy' }, peerId);
-      }
+      const current = this.isPending(peer) || (this.session?.peerId === peerId && this.session.link === link);
+      if (!current) link.send.answer({ accepted: false, reason: 'busy' }, peerId);
       return;
     }
     if ((this.declined.get(peerId) ?? 0) > Date.now()) {
-      return this.sendAnswer?.({ accepted: false, reason: 'declined' }, peerId);
+      return link.send.answer({ accepted: false, reason: 'declined' }, peerId);
     }
-    this.pendingPeer = peerId;
+    this.pending = peer;
 
     // A remembered device skips the prompt once it proves it holds its private key.
     const print = visitor.key ? await fingerprint(visitor.key).catch(() => undefined) : undefined;
     const trusted = print && loadTrusted().find((d) => d.fingerprint === print && d.publicKey === visitor.key);
-    if (trusted && (await this.verifyPeer(peerId, visitor.key!))) {
-      if (this.pendingPeer !== peerId) return;
-      this.pendingPeer = undefined;
+    if (trusted && (await this.verifyPeer(peer, visitor.key!))) {
+      if (!this.isPending(peer)) return;
+      this.pending = undefined;
       touchTrusted(trusted.fingerprint);
       const known = { ...visitor, name: visitor.name || trusted.name };
-      return this.startSession(peerId, viewerPlatform, known, trusted.control, true);
+      return this.startSession(peer, viewerPlatform, known, trusted.control, true);
+    }
+    // Nobody is asked in the trusted room: unknown or removed devices are simply turned away.
+    if (link.trustedOnly) {
+      if (this.isPending(peer)) this.pending = undefined;
+      this.declined.set(peerId, Date.now() + DECLINE_COOLDOWN_MS);
+      return link.send.answer({ accepted: false, reason: 'untrusted' }, peerId);
     }
 
     const { choice, remember } = await this.events.confirm({ ...visitor, key: print ? visitor.key : undefined });
-    if (this.pendingPeer !== peerId) return; // viewer left while the dialog was open
+    if (!this.isPending(peer)) return; // viewer left while the dialog was open
     if (choice === 'deny') {
-      this.pendingPeer = undefined;
+      this.pending = undefined;
       this.declined.set(peerId, Date.now() + DECLINE_COOLDOWN_MS);
-      return this.sendAnswer?.({ accepted: false, reason: 'declined' }, peerId);
+      return link.send.answer({ accepted: false, reason: 'declined' }, peerId);
     }
     const canControl = choice === 'control';
-    const remembered = Boolean(remember && print && (await this.verifyPeer(peerId, visitor.key!)));
-    if (this.pendingPeer !== peerId) return;
-    this.pendingPeer = undefined;
+    const remembered = Boolean(remember && print && (await this.verifyPeer(peer, visitor.key!)));
+    if (!this.isPending(peer)) return;
+    this.pending = undefined;
     if (remembered) {
       addTrusted({ fingerprint: print!, publicKey: visitor.key!, name: visitor.name, id: visitor.id, control: canControl, added: Date.now() });
+      this.syncTrustedRoom();
     }
-    await this.startSession(peerId, viewerPlatform, visitor, canControl, remembered);
+    await this.startSession(peer, viewerPlatform, visitor, canControl, remembered);
   }
 
   // Challenge-response: the viewer signs a fresh nonce bound to this computer's ID.
-  private async verifyPeer(peerId: string, key: string): Promise<boolean> {
+  private async verifyPeer({ peerId, link }: Peer, key: string): Promise<boolean> {
     const nonce = newNonce();
     const signature = await new Promise<string | undefined>((resolve) => {
       const timer = setTimeout(() => {
@@ -288,19 +361,14 @@ export class Host {
         this.proofWaiters.delete(peerId);
         resolve(sig);
       });
-      this.sendChallenge?.({ nonce }, peerId);
+      link.send.challenge({ nonce }, peerId);
     });
     return Boolean(signature) && verify(key, challengeText(this.hostId, nonce), signature!);
   }
 
-  private async startSession(
-    peerId: string,
-    viewerPlatform: string,
-    visitor: Visitor,
-    canControl: boolean,
-    trusted: boolean,
-  ) {
-    this.session = { ...visitor, peerId, canControl, paused: false, startedAt: Date.now(), trusted };
+  private async startSession(peer: Peer, viewerPlatform: string, visitor: Visitor, canControl: boolean, trusted: boolean) {
+    const { peerId, link } = peer;
+    this.session = { ...visitor, ...peer, canControl, paused: false, startedAt: Date.now(), trusted };
     window.api.setSessionState('host');
     window.api.watchClipboard(true);
     this.events.onSessionChange({ ...this.session });
@@ -314,11 +382,11 @@ export class Host {
       capture = await captureView(this.view, this.displays);
     } catch (err) {
       console.error(err);
-      this.sendAnswer?.({ accepted: false, reason: 'capture' }, peerId);
+      link.send.answer({ accepted: false, reason: 'capture' }, peerId);
       this.endSession(false, 'capture');
       return;
     }
-    if (this.session?.peerId !== peerId) {
+    if (this.session?.peerId !== peerId || this.session.link !== link) {
       capture.stop();
       return;
     }
@@ -327,24 +395,27 @@ export class Host {
     window.api.setInputView(this.view);
     window.api.sendInput({ t: 'hello', platform: viewerPlatform });
     const screen = { width: capture.width, height: capture.height };
-    this.sendAnswer?.({ accepted: true, control: canControl, screen }, peerId);
-    this.sendLayout?.({ displays: this.displays, view: this.view, screen }, peerId);
-    await Promise.all(this.room!.addStream(this.stream, { target: peerId }));
-    await this.tuneSender(peerId);
+    link.send.answer({ accepted: true, control: canControl, screen }, peerId);
+    link.send.layout({ displays: this.displays, view: this.view, screen }, peerId);
+    // A verified trusted device gets the key to come back without the password.
+    if (trusted) link.send.pair({ secret: loadTrustSecret() }, peerId);
+    await Promise.all(link.room.addStream(this.stream, { target: peerId }));
+    await this.tuneSender();
   }
 
   // Swaps the picture to another monitor (or all of them) without renegotiating the connection.
   private switchView(peerId: string, view: string) {
     this.switching = this.switching.then(async () => {
-      if (this.session?.peerId !== peerId || !this.capture || !this.stream) return;
+      const s = this.session;
+      if (s?.peerId !== peerId || !this.capture || !this.stream) return;
       this.displays = await window.api.getDisplays();
       if (view !== ALL_DISPLAYS && !this.displays.some((d) => d.id === view)) return;
       if (view === ALL_DISPLAYS && this.displays.length < 2) return;
       const next = await captureView(view, this.displays).catch((err) => console.error(err));
       if (!next) return;
       const old = this.capture;
-      const sender = this.room?.getPeers()[peerId]?.getSenders().find((s) => s.track === old.track);
-      if (this.session?.peerId !== peerId || !sender) return next.stop();
+      const sender = s.link.room.getPeers()[peerId]?.getSenders().find((x) => x.track === old.track);
+      if (this.session !== s || !sender) return next.stop();
       await sender.replaceTrack(next.track);
       this.stream.removeTrack(old.track);
       this.stream.addTrack(next.track);
@@ -352,22 +423,22 @@ export class Host {
       old.stop();
       this.view = view;
       window.api.setInputView(view);
-      this.sendLayout?.({ displays: this.displays, view, screen: { width: next.width, height: next.height } }, peerId);
-      await this.tuneSender(peerId);
+      s.link.send.layout({ displays: this.displays, view, screen: { width: next.width, height: next.height } }, peerId);
+      await this.tuneSender();
     });
   }
 
-  private async tuneSender(peerId: string) {
-    const pc = this.room?.getPeers()[peerId];
+  private async tuneSender() {
+    const s = this.session;
+    const pc = s && s.link.room.getPeers()[s.peerId];
     const track = this.capture?.track;
-    const sender = pc?.getSenders().find((s) => s.track === track);
-    if (!sender) return;
-    const quality = this.quality;
-    const preset = { ...QUALITY_PRESETS[quality] };
+    const sender = pc?.getSenders().find((x) => x.track === track);
+    if (!sender || !track) return;
+    const preset = { ...QUALITY_PRESETS[this.quality] };
     // All monitors in one picture: allow it to stay twice as wide.
     if (this.view === ALL_DISPLAYS) preset.maxWidth *= 2;
     const width = this.capture!.width;
-    track!.contentHint = preset.hint;
+    track.contentHint = preset.hint;
     const params = sender.getParameters();
     params.degradationPreference = preset.preference;
     for (const enc of params.encodings) {
@@ -378,23 +449,25 @@ export class Host {
     await sender.setParameters(params).catch(console.error);
   }
 
-  private peerGone(peerId: string) {
-    if (peerId === this.pendingPeer) this.pendingPeer = undefined;
-    if (peerId === this.session?.peerId) this.endSession(false, 'partnerLeft');
+  private peerGone(peerId: string, link: Link) {
+    if (this.isPending({ peerId, link })) this.pending = undefined;
+    if (this.session?.peerId === peerId && this.session.link === link) this.endSession(false, 'partnerLeft');
   }
 
   private endSession(notifyPeer: boolean, error?: 'capture' | 'partnerLeft') {
-    const peerId = this.session?.peerId;
-    if (!peerId) return;
+    const s = this.session;
+    if (!s) return;
     this.session = undefined;
-    if (notifyPeer) this.sendBye?.(peerId);
+    if (notifyPeer) s.link.send.bye(s.peerId);
     if (this.stream) {
-      this.room?.removeStream(this.stream, { target: peerId });
+      s.link.room.removeStream(this.stream, { target: s.peerId });
       this.stream = undefined;
     }
     this.capture?.stop();
     this.capture = undefined;
     window.api.setSessionState('idle');
     this.events.onSessionChange(null, error);
+    // Devices removed during the session: leave the trusted room now that it is free.
+    this.syncTrustedRoom();
   }
 }

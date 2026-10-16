@@ -153,7 +153,13 @@
               </div>
               <form id="connect-form" autocomplete="off">
                 <input id="partner-id" class="pill-input id-input" inputmode="numeric" data-i18n-placeholder="viewer.partnerId" aria-label="Partner ID" required />
-                <input id="partner-password" class="pill-input" type="password" data-i18n-placeholder="viewer.password" aria-label="Password" required />
+                <div class="password-field">
+                  <input id="partner-password" class="pill-input" type="password" data-i18n-placeholder="viewer.password" aria-label="Password" required />
+                  <button type="button" class="reveal-button" id="reveal-password" data-i18n-title="viewer.showPassword">
+                    <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>
+                    <svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.5 10.5 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a10 10 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2" /></svg>
+                  </button>
+                </div>
                 <div class="form-actions">
                   <button type="submit" class="dark-button" id="connect-button">
                     <span data-i18n="viewer.connect"></span>
@@ -164,6 +170,14 @@
                 <p class="form-status" id="connect-status" role="status"></p>
               </form>
             </article>
+          </div>
+
+          <div class="panel recent-panel" id="devices-panel" hidden>
+            <div class="section-head">
+              <h3 data-i18n="devices.title"></h3>
+            </div>
+            <p class="hint devices-hint" data-i18n="devices.hint"></p>
+            <div id="devices-list"></div>
           </div>
 
           <div class="panel recent-panel">
@@ -197,6 +211,14 @@
               <p class="hint" data-i18n="trusted.hint"></p>
               <div class="trusted-list" id="trusted-list"></div>
               <p class="hint" id="trusted-empty" data-i18n="trusted.empty"></p>
+              <button type="button" class="small-button remove" id="trusted-reset" hidden></button>
+              <label class="option background-option">
+                <input type="checkbox" id="setting-background" />
+                <span>
+                  <strong data-i18n="settings.background"></strong>
+                  <span class="hint" data-i18n="settings.backgroundHint"></span>
+                </span>
+              </label>
             </div>
 
             <div class="settings-group">
@@ -303,11 +325,14 @@
                   <span class="value-label" data-i18n="news.installed"></span>
                 </div>
               </div>
-              <p class="card-hint" id="update-status"></p>
+              <p class="card-hint">
+                <span id="update-status"></span>
+                <button class="link-button" id="update-primary" hidden><span id="update-primary-label"></span></button>
+              </p>
               <div class="form-actions">
-                <button class="dark-button" id="update-primary" hidden>
-                  <span id="update-primary-label"></span>
-                  <span class="arrow-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg></span>
+                <button class="ghost-button update-get" id="update-get" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16" /></svg>
+                  <span id="update-get-label"></span>
                 </button>
                 <button class="ghost-button" id="update-check" data-i18n="update.check"></button>
               </div>

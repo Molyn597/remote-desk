@@ -33,4 +33,6 @@ await Promise.all([
   ),
   cp('../CHANGELOG.md', 'dist/CHANGELOG.md'),
   cp('build/icon.png', 'dist/icon.png'),
+  cp('build/trayTemplate.png', 'dist/trayTemplate.png'),
+  cp('build/trayTemplate@2x.png', 'dist/trayTemplate@2x.png'),
 ]);

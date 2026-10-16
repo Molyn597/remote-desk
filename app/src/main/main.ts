@@ -11,6 +11,7 @@ import {
   dialog,
   ipcMain,
   Menu,
+  safeStorage,
   screen,
   session,
   shell,
@@ -26,6 +27,7 @@ import type {
   SessionPanelInfo,
   SessionState,
 } from '../preload/api';
+import { keepAliveOnClose, setRunAtLogin, setupBackground, startedHidden, type BackgroundLabels } from './background';
 import { listDisplays, viewRect } from './displays';
 import { handleInput, resetInput, setInputView, watchLocalMouse } from './input';
 import { watchClipboard, writeClipboard } from './clipboard';
@@ -46,6 +48,7 @@ let win: BrowserWindow | undefined;
 let panel: BrowserWindow | undefined;
 let sessionState: SessionState = 'idle';
 let captureTarget: string | undefined;
+let hiddenStart = false;
 
 const PANEL_SIZE = { width: 740, height: 64 };
 const TITLE_BAR_HEIGHT = 36;
@@ -93,8 +96,16 @@ function setMenu(viewing: boolean) {
   Menu.setApplicationMenu(template.length ? Menu.buildFromTemplate(template) : null);
 }
 
-function createWindow() {
+function showWindow() {
+  if (!win) return createWindow();
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
+function createWindow(hidden = false) {
   win = new BrowserWindow({
+    show: !hidden,
     width: 1180,
     height: 780,
     minWidth: 900,
@@ -117,6 +128,7 @@ function createWindow() {
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
+  keepAliveOnClose(win);
   win.on('closed', () => {
     win = undefined;
     panel?.close();
@@ -243,6 +255,9 @@ async function requestPermission(kind: PermissionKind) {
   await shell.openExternal(PRIVACY_PANES[kind]);
 }
 
+// One instance only: launching again (or from the login item) brings up the running one.
+if (!app.requestSingleInstanceLock()) app.exit(0);
+
 app.whenReady().then(async () => {
   await offerMoveToApplications();
   // The packaged app takes its icon from the bundle; during development show ours too.
@@ -262,6 +277,31 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Trusted-device keys for computers this one connects to, encrypted with the OS keychain/DPAPI.
+  ipcMain.handle('protect', (e, text: unknown) =>
+    fromMainWindow(e) && typeof text === 'string' && text.length < 1000 && safeStorage.isEncryptionAvailable()
+      ? safeStorage.encryptString(text).toString('base64')
+      : null,
+  );
+  ipcMain.handle('unprotect', (e, data: unknown) => {
+    if (!fromMainWindow(e) || typeof data !== 'string' || data.length > 4000) return null;
+    try {
+      return safeStorage.decryptString(Buffer.from(data, 'base64'));
+    } catch {
+      return null;
+    }
+  });
+  ipcMain.on('background', (e, enabled: unknown, labels: BackgroundLabels) => {
+    if (!fromMainWindow(e) || !win) return;
+    setRunAtLogin(enabled === true);
+    // Started hidden at login but background mode is off by now: nothing would show the window.
+    if (enabled !== true && !win.isVisible()) showWindow();
+    setupBackground(enabled === true, showWindow, {
+      open: String(labels?.open ?? ''),
+      quit: String(labels?.quit ?? ''),
+      tooltip: String(labels?.tooltip ?? ''),
+    });
+  });
   ipcMain.handle('config', () => ({
     platform: process.platform,
     locale: systemLocale(),
@@ -380,8 +420,15 @@ app.whenReady().then(async () => {
   });
 
   setMenu(false);
-  createWindow();
+  hiddenStart = startedHidden();
+  createWindow(hiddenStart);
   setupUpdater((state) => win?.webContents.send('update-state', state));
+});
+
+app.on('second-instance', () => showWindow());
+// macOS also sends 'activate' right after launch; a login start stays hidden.
+app.on('activate', () => {
+  if (app.isReady() && !(hiddenStart && process.uptime() < 5)) showWindow();
 });
 
 app.on('window-all-closed', () => {

@@ -14,8 +14,12 @@ import {
   type FileRequest,
   type Hello,
   type InputEvent,
+  type Pairing,
   type Proof,
   type SessionStatus,
+  isTrustSecret,
+  MAX_NAME_LENGTH,
+  trustedRoom,
 } from '../../../shared/protocol';
 import { challengeText, type Identity } from './identity';
 import { join } from './network';
@@ -31,6 +35,8 @@ export type ViewerStatus = 'searching' | 'waiting';
 
 export interface ViewerSession {
   hostPlatform: string;
+  // The host's display name, if it set one.
+  hostName: string;
   // Size of the host's captured screen in pixels (the stream itself may be downscaled).
   screen?: { width: number; height: number };
   // The host's monitors and which one is shown; sent again after every switch.
@@ -61,6 +67,8 @@ export interface ViewerEvents {
   onConnected(session: ViewerSession): void;
   onStream(stream: MediaStream): void;
   onEnd(error?: ViewerError): void;
+  // The host remembered this device and gave it the key to its trusted-device room.
+  onPaired(hostId: string, secret: string, hostName: string): void;
 }
 
 const validScreen = (s: unknown) => {
@@ -88,6 +96,7 @@ export class Viewer {
   private room?: Room;
   private hostPeer?: string;
   private hostPlatform = '';
+  private hostName = '';
   private timer?: number;
   private connected = false;
   private sendBye?: () => void;
@@ -97,13 +106,15 @@ export class Viewer {
     private readonly events: ViewerEvents,
   ) {}
 
+  // With `trusted`, `password` is the secret of the host's trusted-device room.
   connect(
     settings: Settings,
     partnerId: string,
     password: string,
     me: { name: string; id: string; identity?: Identity },
+    trusted = false,
   ) {
-    const room = join(settings, partnerId, password, {
+    const room = join(settings, trusted ? trustedRoom(partnerId) : partnerId, password, {
       onJoinError: (e) => {
         if (/password/i.test(e.error)) this.end('wrongPassword');
       },
@@ -127,7 +138,14 @@ export class Viewer {
     const offer = room.makeAction<FileOffer[]>('offer');
     const request = room.makeAction<FileRequest>('pull');
     const layout = room.makeAction<DisplayLayout>('displays');
+    const pair = room.makeAction<Pairing>('pair');
     let acceptFilesUntil = 0;
+
+    pair.onMessage = (data, { peerId }) => {
+      if (peerId === this.hostPeer && this.connected && isTrustSecret(data?.secret)) {
+        this.events.onPaired(partnerId, data.secret, this.hostName);
+      }
+    };
 
     layout.onMessage = (data, { peerId }) => {
       if (!session || peerId !== this.hostPeer) return;
@@ -193,19 +211,21 @@ export class Viewer {
       if (nonce) void answerChallenge(peerId, nonce);
       pendingChallenges.clear();
       this.hostPlatform = String(data.platform);
+      this.hostName = String(data.name ?? '').replace(/[\p{C}]/gu, '').trim().slice(0, MAX_NAME_LENGTH);
       this.events.onStatus('waiting');
       this.startTimer(ACCEPT_TIMEOUT_MS, 'noResponse');
     };
     answer.onMessage = (data, { peerId }) => {
       if (peerId !== this.hostPeer || this.connected) return;
       if (!data?.accepted) {
-        const known: AnswerReason[] = ['declined', 'busy', 'capture'];
+        const known: AnswerReason[] = ['declined', 'busy', 'capture', 'untrusted'];
         return this.end(known.includes(data?.reason as AnswerReason) ? data.reason : 'declined');
       }
       clearTimeout(this.timer);
       this.connected = true;
       session = {
         hostPlatform: this.hostPlatform,
+        hostName: this.hostName,
         canControl: data.control !== false,
         screen: validScreen(data.screen),
         sendInput: (ev) => void input.send(ev, { target: peerId }),
@@ -279,6 +299,7 @@ export class Viewer {
     const room = this.room;
     this.room = undefined;
     this.hostPeer = undefined;
+    this.hostName = '';
     this.connected = false;
     this.sendBye = undefined;
     void room.leave();

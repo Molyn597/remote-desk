@@ -70,6 +70,10 @@ export interface Api {
   pickFilesToSend(title: string): Promise<FileOffer[]>;
   readOfferedFile(id: string): Promise<{ name: string; data: ArrayBuffer } | null>;
   setTheme(theme: 'light' | 'dark'): void;
+  // Encrypts/decrypts small secrets with the OS keychain; null when unavailable.
+  protect(text: string): Promise<string | null>;
+  unprotect(data: string): Promise<string | null>;
+  setBackground(enabled: boolean, labels: { open: string; quit: string; tooltip: string }): void;
   revealFile(path: string): void;
   // What's new and feedback.
   getChangelog(): Promise<string>;

@@ -3,6 +3,19 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.6] - 2026-10-16
+
+### Added
+
+- Connect without a password: a computer that remembers your device appears under My devices on the home page. One click connects, with no password and no prompt. Remove the device on that computer, or use "Remove all and replace the key", to revoke access.
+- Start at login and run in the background (Settings): closing the window keeps Remote Desk in the menu bar or system tray, so trusted devices can connect while you are away.
+- Show the password you typed with the eye button, and the partner ID is shown in groups of three as you type.
+- Download update button next to Check now. It turns orange when an update is available.
+
+### Changed
+
+- Drop-down menus (such as Language) now match the app's style.
+
 ## [0.1.5] - 2026-10-16
 
 ### Added

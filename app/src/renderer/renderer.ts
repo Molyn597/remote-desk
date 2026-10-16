@@ -1,6 +1,7 @@
 import type { Api, PermissionKind, UpdateState } from '../preload/api';
 import { parseChangelog, renderRelease, type Release } from './changelog';
 import { renderHelp } from './help';
+import { enhanceSelect, refreshSelects } from './select';
 import { Host, type HostSession, type Visitor } from './host';
 import { loadIdentity } from './identity';
 import { currentLanguage, setLanguage, t, type MessageKey } from './i18n';
@@ -8,12 +9,18 @@ import { isOnline } from './network';
 import {
   addRecent,
   loadHostId,
+  loadMyDevices,
   loadRecent,
   loadSettings,
   loadTrusted,
+  removeMyDevice,
   removeRecent,
   removeTrusted,
+  resetTrust,
+  saveMyDevice,
   saveSettings,
+  touchMyDevice,
+  type MyDevice,
   type Settings,
 } from './settings';
 import { Viewer, type ViewerError, type ViewerSession } from './viewer';
@@ -195,7 +202,10 @@ const VIEWER_ERRORS: Record<ViewerError, MessageKey> = {
   busy: 'msg.busy',
   capture: 'msg.capture',
   partnerLeft: 'msg.partnerLeft',
+  untrusted: 'msg.untrusted',
 };
+
+let viewerTrusted = false;
 
 let viewerPartnerId = '';
 
@@ -204,6 +214,10 @@ const viewer = new Viewer(config.platform, {
   onConnected: (session) => {
     addRecent(viewerPartnerId);
     renderRecent();
+    if (viewerTrusted) {
+      touchMyDevice(viewerPartnerId);
+      renderMyDevices();
+    }
     setStatus('');
     $('viewer-title').textContent = t('session.connectedTo', { id: formatId(viewerPartnerId) });
     $('viewer').hidden = false;
@@ -228,7 +242,25 @@ const viewer = new Viewer(config.platform, {
     applyTheme();
     window.api.setSessionState('idle');
     setViewerBusy(false);
-    setStatus(error ? t(VIEWER_ERRORS[error]) : '', Boolean(error && error !== 'partnerLeft'));
+    // In the trusted room a wrong key means this computer no longer trusts us; nobody there
+    // means it is offline or has no trusted devices any more.
+    const shown = viewerTrusted && error === 'wrongPassword' ? 'untrusted' : error;
+    const message = viewerTrusted && shown === 'notFound' ? 'msg.trustedNotFound' : shown && VIEWER_ERRORS[shown];
+    setStatus(message ? t(message) : '', Boolean(shown && shown !== 'partnerLeft'));
+    viewerTrusted = false;
+  },
+  onPaired: async (id, secret, hostName) => {
+    const encrypted = await window.api.protect(secret);
+    if (!encrypted) return; // no OS encryption: don't keep the key in plain text
+    const existing = loadMyDevices().find((d) => d.id === id);
+    saveMyDevice({
+      id,
+      name: hostName || existing?.name || '',
+      secret: encrypted,
+      added: existing?.added ?? Date.now(),
+      lastConnected: Date.now(),
+    });
+    renderMyDevices();
   },
 });
 
@@ -247,7 +279,7 @@ function setViewerBusy(busy: boolean) {
 $('connect-form').addEventListener('submit', (e) => {
   e.preventDefault();
   if (viewerBusy) return;
-  const id = $<HTMLInputElement>('partner-id').value.replace(/\s/g, '');
+  const id = $<HTMLInputElement>('partner-id').value.replace(/\D/g, '');
   const pw = $<HTMLInputElement>('partner-password').value.trim();
   if (!/^\d{9}$/.test(id)) return setStatus(t('msg.invalidId'), true);
   if (id === hostId) return setStatus(t('msg.ownId'), true);
@@ -256,6 +288,91 @@ $('connect-form').addEventListener('submit', (e) => {
   viewer.connect(settings, id, pw, { name: settings.displayName, id: hostId, identity });
 });
 $('cancel-button').addEventListener('click', () => viewer.disconnect());
+
+// Partner ID typed as "123 456 789"; pasted text with spaces or dashes is cleaned up too.
+const idInput = $<HTMLInputElement>('partner-id');
+idInput.maxLength = 11;
+idInput.addEventListener('input', () => {
+  const caret = idInput.selectionStart ?? idInput.value.length;
+  const digitsBefore = idInput.value.slice(0, caret).replace(/\D/g, '').length;
+  const formatted = formatId(idInput.value.replace(/\D/g, '').slice(0, 9));
+  idInput.value = formatted;
+  // Keep the caret after the same digit it followed before formatting.
+  let pos = 0;
+  for (let seen = 0; pos < formatted.length && seen < digitsBefore; pos++) if (/\d/.test(formatted[pos])) seen++;
+  idInput.setSelectionRange(pos, pos);
+});
+
+$('reveal-password').addEventListener('click', () => {
+  const input = $<HTMLInputElement>('partner-password');
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  $('reveal-password').classList.toggle('shown', show);
+  $('reveal-password').title = t(show ? 'viewer.hidePassword' : 'viewer.showPassword');
+  input.focus();
+});
+
+// My devices: computers that remembered this one; connect without the password.
+
+async function connectTrusted(device: MyDevice) {
+  if (viewerBusy) return;
+  const secret = await window.api.unprotect(device.secret);
+  if (!secret) return setStatus(t('msg.keyUnreadable'), true);
+  showPage('home');
+  viewerPartnerId = device.id;
+  viewerTrusted = true;
+  setViewerBusy(true);
+  viewer.connect(settings, device.id, secret, { name: settings.displayName, id: hostId, identity }, true);
+}
+
+function renderMyDevices() {
+  const devices = loadMyDevices();
+  $('devices-panel').hidden = devices.length === 0;
+  const dateFormat = new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'medium', timeStyle: 'short' });
+  $('devices-list').replaceChildren(
+    ...devices.map((device) => {
+      const row = document.createElement('div');
+      row.className = 'recent-row';
+
+      const label = document.createElement('span');
+      label.className = 'recent-id';
+      label.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+      const text = document.createElement('span');
+      text.className = 'device-name';
+      const name = document.createElement('strong');
+      name.textContent = device.name || formatId(device.id);
+      text.append(name);
+      if (device.name) {
+        const id = document.createElement('small');
+        id.textContent = formatId(device.id);
+        text.append(id);
+      }
+      label.append(text);
+
+      const date = document.createElement('span');
+      date.className = 'recent-date';
+      date.textContent = device.lastConnected ? dateFormat.format(device.lastConnected) : '';
+
+      const actions = document.createElement('span');
+      actions.className = 'row-actions';
+      const connect = document.createElement('button');
+      connect.className = 'small-button';
+      connect.textContent = t('recent.connect');
+      connect.addEventListener('click', () => void connectTrusted(device));
+      const remove = document.createElement('button');
+      remove.className = 'small-button remove';
+      remove.textContent = t('recent.remove');
+      remove.addEventListener('click', () => {
+        removeMyDevice(device.id);
+        renderMyDevices();
+      });
+      actions.append(connect, remove);
+      row.append(label, date, actions);
+      return row;
+    }),
+  );
+}
 $('sidebar-connect').addEventListener('click', () => {
   showPage('home');
   $('partner-id').focus();
@@ -290,6 +407,8 @@ function renderRecent() {
     connect.className = 'small-button';
     connect.textContent = t('recent.connect');
     connect.addEventListener('click', () => {
+      const trusted = loadMyDevices().find((d) => d.id === partner.id);
+      if (trusted) return void connectTrusted(trusted);
       $<HTMLInputElement>('partner-id').value = formatId(partner.id);
       $<HTMLInputElement>('partner-password').value = '';
       $('partner-password').focus();
@@ -317,10 +436,36 @@ function updateServerFields() {
   $('own-server-fields').hidden = !own;
 }
 
+// Removes every trusted device and replaces the room key, so copies of it stop working.
+// Needs a second click so it can't happen by accident.
+$('trusted-reset').addEventListener('click', () => {
+  const button = $('trusted-reset');
+  if (!button.dataset.armed) {
+    button.dataset.armed = '1';
+    button.textContent = t('trusted.resetConfirm');
+    setTimeout(() => renderTrusted(), 4000);
+    return;
+  }
+  resetTrust();
+  void host.restartTrustedRoom();
+  renderTrusted();
+});
+
+function sendBackground() {
+  window.api.setBackground(settings.runInBackground, {
+    open: t('tray.open'),
+    quit: t('tray.quit'),
+    tooltip: t('tray.tooltip', { id: formatId(hostId) }),
+  });
+}
+
 function renderTrusted() {
   const devices = loadTrusted();
   const dateFormat = new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'medium' });
   $('trusted-empty').hidden = devices.length > 0;
+  $('trusted-reset').hidden = devices.length === 0;
+  $('trusted-reset').textContent = t('trusted.reset');
+  delete $('trusted-reset').dataset.armed;
   $('trusted-list').replaceChildren(
     ...devices.map((device) => {
       const row = document.createElement('div');
@@ -341,6 +486,7 @@ function renderTrusted() {
       remove.textContent = t('recent.remove');
       remove.addEventListener('click', () => {
         removeTrusted(device.fingerprint);
+        host.syncTrustedRoom();
         renderTrusted();
       });
       row.append(text, remove);
@@ -352,7 +498,9 @@ function renderTrusted() {
 function fillSettingsForm() {
   renderTrusted();
   $<HTMLInputElement>('setting-name').value = settings.displayName;
+  $<HTMLInputElement>('setting-background').checked = settings.runInBackground;
   $<HTMLSelectElement>('setting-language').value = settings.language;
+  refreshSelects();
   for (const radio of networkRadios()) radio.checked = radio.value === (settings.serverUrl ? 'own' : 'public');
   $<HTMLInputElement>('setting-server').value = settings.serverUrl;
   $<HTMLInputElement>('setting-turn-url').value = settings.turnUrl;
@@ -377,6 +525,7 @@ $('settings-form').addEventListener('submit', (e) => {
   const next: Settings = {
     ...settings,
     displayName: $<HTMLInputElement>('setting-name').value.trim(),
+    runInBackground: $<HTMLInputElement>('setting-background').checked,
     language: $<HTMLSelectElement>('setting-language').value as Settings['language'],
     serverUrl,
     turnUrl: $<HTMLInputElement>('setting-turn-url').value.trim(),
@@ -405,6 +554,9 @@ function applyLanguage() {
   renderChangelog();
   renderUpdate();
   refreshStatus();
+  refreshSelects();
+  renderMyDevices();
+  sendBackground();
 }
 
 // Updates, what's new and feedback
@@ -433,6 +585,15 @@ function renderUpdate() {
   $('update-banner').hidden = !offered;
   $('news-badge').hidden = !offered;
   $('update-primary').hidden = !offered;
+  // Orange as soon as there is something to get; otherwise a quiet, disabled button.
+  const get = $<HTMLButtonElement>('update-get');
+  const pending = offered || status === 'downloading' || (status === 'available' && updateState.canInstall);
+  get.hidden = status === 'unsupported';
+  get.classList.toggle('accent-button', pending);
+  get.disabled = !offered;
+  $('update-get-label').textContent = t(
+    status === 'ready' ? 'update.install' : status === 'downloading' ? 'update.downloadingShort' : 'update.get',
+  );
   if (offered) {
     $('update-banner-text').textContent = t(status === 'ready' ? 'update.bannerReady' : 'update.bannerAvailable', vars);
     $('update-banner-action').textContent = t('update.whatsNew');
@@ -479,6 +640,7 @@ window.api.onUpdateState((state) => {
   renderUpdate();
 });
 $('update-check').addEventListener('click', () => window.api.checkForUpdates());
+$('update-get').addEventListener('click', runUpdateAction);
 $('update-banner-action').addEventListener('click', () => void openWhatsNew('update'));
 $('update-primary').addEventListener('click', () => void openWhatsNew('update'));
 $('whats-new-close').addEventListener('click', closeWhatsNew);
@@ -552,6 +714,7 @@ window.addEventListener('focus', () => void refreshPermissions());
 document.body.classList.add(`platform-${config.platform}`);
 for (const el of document.querySelectorAll<HTMLElement>('.mac-only')) el.hidden = !isMac;
 $('version').textContent = `v${config.version}`;
+document.querySelectorAll('select').forEach(enhanceSelect);
 applyTheme();
 applyLanguage();
 void refreshPermissions();

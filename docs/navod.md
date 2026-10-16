@@ -10,10 +10,11 @@ Remote Desk umožní ovládat jiný počítač na dálku, nebo nechat někoho ov
 1. [Instalace](#instalace)
 2. [Nechat se ovládat](#nechat-se-ovládat)
 3. [Ovládat jiný počítač](#ovládat-jiný-počítač)
-4. [Lišta během relace](#lišta-během-relace)
-5. [Nastavení](#nastavení)
-6. [Bezpečnost](#bezpečnost)
-7. [Když něco nefunguje](#když-něco-nefunguje)
+4. [Připojení bez hesla](#připojení-bez-hesla)
+5. [Lišta během relace](#lišta-během-relace)
+6. [Nastavení](#nastavení)
+7. [Bezpečnost](#bezpečnost)
+8. [Když něco nefunguje](#když-něco-nefunguje)
 
 ## Instalace
 
@@ -77,6 +78,24 @@ Pokud vám partner povolí jen sledování nebo ovládání pozastaví, uvidíte
 
 V **Nastavení → Vaše jméno** si můžete zadat jméno, které partner uvidí v dialogu při připojení.
 Je to nepovinné; bez jména se zobrazí jen vaše ID.
+
+## Připojení bez hesla
+
+Pro vlastní počítače nebo lidi, kterým pomáháte často:
+
+1. Připojte se jednou pomocí ID a hesla. Člověk u druhého počítače při povolení zaškrtne
+   **Pamatovat si toto zařízení**.
+2. Ten počítač se vám objeví v sekci **Moje zařízení** na hlavní stránce. Klikněte na **Připojit**
+   a jste tam: bez hesla a bez dotazu. Panel relace připojení na druhém počítači stále ukazuje.
+3. Aby se šlo připojit, i když u počítače nikdo není, zapněte v jeho Nastavení **Spouštět po
+   přihlášení a běžet na pozadí**. Po zavření okna pak Remote Desk běží dál v liště nahoře (Mac)
+   nebo v oznamovací oblasti (Windows).
+4. Přístup zrušíte na tom počítači v **Nastavení → Důvěryhodná zařízení**. Tlačítko
+   **Odebrat vše a vyměnit klíč** ho sebere všem zařízením najednou.
+
+Připojení používá zvláštní klíč, který vašemu zařízení předá druhý počítač. Ukládá se šifrovaně
+systémem (Klíčenka na macOS, DPAPI na Windows) a sám nestačí: vaše zařízení musí navíc prokázat,
+že vlastní svůj soukromý klíč.
 
 ## Lišta během relace
 
