@@ -22,6 +22,7 @@ import type {
   ConfirmChoice,
   ConfirmResult,
   ConfirmText,
+  DeepLink,
   PermissionKind,
   SessionAction,
   SessionPanelInfo,
@@ -31,7 +32,8 @@ import { applyTrayState, cleanTrayState, keepAliveOnClose, setRunAtLogin, starte
 import { listDisplays, viewRect } from './displays';
 import { clearLog, errorText, log, logFile, logStartup, readLog } from './log';
 import { setKeepAwake, setSessionAwake } from './power';
-import { handleInput, resetInput, setInputView, watchLocalMouse } from './input';
+import { handleInput, resetInput, setInputView, setLocalActivityHandler, watchLocalMouse } from './input';
+import { privacyOn, setPrivacyScreen } from './privacy';
 import { watchClipboard, writeClipboard } from './clipboard';
 import { clearOffers, offerFiles, readOfferedFile, saveReceivedFile, wasSaved } from './files';
 import { appId, rawFileUrl, repoUrl } from './repo';
@@ -107,6 +109,7 @@ function showWindow() {
 }
 
 function createWindow(hidden = false) {
+  rendererReady = false;
   win = new BrowserWindow({
     show: !hidden,
     width: 1180,
@@ -184,10 +187,18 @@ function showSessionPanel(info: SessionPanelInfo | null) {
   else send();
 }
 
+// Someone at this computer moved the mouse: the privacy screen must never lock them out.
+setLocalActivityHandler(() => {
+  if (!privacyOn()) return;
+  setPrivacyScreen(false);
+  win?.webContents.send('privacy-off');
+});
+
 function onSessionState(state: SessionState) {
   if (state !== sessionState) log('info', 'session', `state ${sessionState} -> ${state}`);
   setSessionAwake(state === 'host');
   if (state !== 'host') {
+    setPrivacyScreen(false);
     resetInput();
     captureTarget = undefined;
     showSessionPanel(null);
@@ -274,6 +285,40 @@ async function requestPermission(kind: PermissionKind) {
 // One instance only: launching again (or from the login item) brings up the running one.
 if (!app.requestSingleInstanceLock()) app.exit(0);
 
+// remotedesk://connect/123456789 links (Shortcuts, Raycast, Stream Deck, a desktop shortcut…).
+// A link only names a computer: favorites connect right away, others just fill in the ID.
+const PROTOCOL = 'remotedesk';
+let pendingLink: DeepLink | undefined;
+let rendererReady = false;
+
+function parseLink(url: unknown): DeepLink | undefined {
+  const match = /^remotedesk:\/\/connect\/(\d{3})[ -]?(\d{3})[ -]?(\d{3})\/?$/i.exec(decodeURIComponent(String(url ?? '')));
+  return match ? { action: 'connect', id: match.slice(1).join('') } : undefined;
+}
+
+function handleLink(url: unknown) {
+  const link = parseLink(url);
+  if (!link) return;
+  log('info', 'link', `opened ${PROTOCOL}://connect/${link.id}`);
+  if (!win || !rendererReady) {
+    pendingLink = link;
+    return;
+  }
+  showWindow();
+  win.webContents.send('deep-link', link);
+}
+
+const linkInArgs = (argv: string[]) => argv.find((arg) => arg.toLowerCase().startsWith(`${PROTOCOL}://`));
+
+if (app.isPackaged) app.setAsDefaultProtocolClient(PROTOCOL);
+// macOS delivers links as events, also the one that launched the app.
+app.on('open-url', (e, url) => {
+  e.preventDefault();
+  handleLink(url);
+});
+// Windows passes the link on the command line.
+handleLink(linkInArgs(process.argv));
+
 app.whenReady().then(async () => {
   logStartup();
   if (isMac) {
@@ -297,6 +342,17 @@ app.whenReady().then(async () => {
     }
   });
 
+  // The window is ready for links; hand over one that arrived while it was loading.
+  ipcMain.handle('deep-link-ready', (e) => {
+    if (!fromMainWindow(e)) return null;
+    rendererReady = true;
+    const link = pendingLink;
+    pendingLink = undefined;
+    return link ?? null;
+  });
+  ipcMain.on('privacy-screen', (e, enabled: unknown, message: unknown) => {
+    if (fromMainWindow(e) && sessionState === 'host') setPrivacyScreen(enabled === true, String(message ?? '').slice(0, 300));
+  });
   ipcMain.on('keep-awake', (e, enabled: unknown) => {
     if (fromMainWindow(e)) setKeepAwake(enabled === true);
   });
@@ -448,7 +504,11 @@ app.whenReady().then(async () => {
   setupUpdater((state) => win?.webContents.send('update-state', state));
 });
 
-app.on('second-instance', () => showWindow());
+app.on('second-instance', (_e, argv) => {
+  const link = linkInArgs(argv);
+  if (link) handleLink(link);
+  else showWindow();
+});
 // macOS also sends 'activate' right after launch; a login start stays hidden.
 app.on('activate', () => {
   if (app.isReady() && !(hiddenStart && process.uptime() < 5)) showWindow();

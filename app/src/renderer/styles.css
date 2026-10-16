@@ -1819,3 +1819,8 @@ html:not(:fullscreen) .platform-linux .viewer-drag {
 #tool-audio.muted .audio-off {
   display: block;
 }
+
+/* Settings that only apply on Windows */
+body:not(.platform-win32) .win-only {
+  display: none;
+}

@@ -377,6 +377,31 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     session.onFavorite = undefined;
   });
 
+  // Privacy screen: black out the remote computer's monitors while you work on it.
+  const privacyButton = $('tool-privacy');
+  const renderPrivacy = () => {
+    privacyButton.hidden = !session.privacyAvailable;
+    privacyButton.classList.toggle('active', session.privacy);
+    privacyButton.title = t(session.privacy ? 'toolbar.privacyOff' : 'toolbar.privacyOn');
+  };
+  let privacyWanted = false;
+  session.onPrivacyChange = (on) => {
+    renderPrivacy();
+    if (on) showTransfer(t('privacy.on'), false, 4000);
+    else if (privacyWanted) showTransfer(t('privacy.lifted'), true, 8000);
+    privacyWanted = on;
+  };
+  onClick('tool-privacy', () => {
+    privacyWanted = !session.privacy;
+    session.sendControl({ privacy: privacyWanted });
+    if (!privacyWanted) showTransfer(t('privacy.off'), false, 3000);
+  });
+  renderPrivacy();
+  cleanups.push(() => {
+    session.onPrivacyChange = undefined;
+    privacyButton.hidden = true;
+  });
+
   // Remote sound: play it here or mute it. Muting only affects this computer.
   const renderAudio = () => {
     const on = !video.muted;

@@ -19,6 +19,7 @@ let viewerPlatform = '';
 let lastInjected: { x: number; y: number; at: number } | undefined;
 let localUntil = 0;
 let watchTimer: ReturnType<typeof setInterval> | undefined;
+let onLocalActivity: () => void = () => {};
 // The part of the desktop the viewer sees; mouse positions are relative to it.
 let view: Rectangle | undefined;
 
@@ -57,6 +58,7 @@ export function watchLocalMouse(enabled: boolean) {
     if (!remote) {
       localUntil = Date.now() + LOCAL_PRIORITY_MS;
       releaseButtons();
+      onLocalActivity();
     }
   }, LOCAL_POLL_MS);
 }
@@ -104,6 +106,11 @@ export function handleInput(ev: InputEvent) {
       return;
     }
   }
+}
+
+// Called when the person at this computer moves the mouse during a session.
+export function setLocalActivityHandler(handler: () => void) {
+  onLocalActivity = handler;
 }
 
 export function setInputView(rect: Rectangle | undefined) {

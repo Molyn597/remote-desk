@@ -20,6 +20,8 @@ export interface TrayState {
   favorites: { id: string; label: string }[];
 }
 
+export type DeepLink = { action: 'connect'; id: string };
+
 export type TrayAction = { type: 'connect'; id: string } | { type: 'copy-id' } | { type: 'copy-password' } | { type: 'disconnect' };
 
 export interface ConfirmText {
@@ -92,9 +94,14 @@ export interface Api {
   clearLog(): void;
   revealLog(): void;
   setKeepAwake(enabled: boolean): void;
+  // Host: black out this computer's monitors (Windows), and hear when local mouse use lifted it.
+  setPrivacyScreen(enabled: boolean, message: string): void;
+  onPrivacyOff(handler: () => void): void;
   // Menu bar/tray icon and Dock menu, and whether the app keeps running in the background.
   setTrayState(state: TrayState): void;
   onTrayAction(handler: (action: TrayAction) => void): void;
+  // remotedesk:// links; returns a link that opened the app before the window was ready.
+  onDeepLink(handler: (link: DeepLink) => void): Promise<DeepLink | null>;
   revealFile(path: string): void;
   // What's new and feedback.
   getChangelog(): Promise<string>;

@@ -3,6 +3,14 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.16] - 2026-10-17
+
+### Added
+
+- Privacy screen (Windows): a favorite device can black out the monitors of the computer it controls, so people there don't see what it does. Only when the owner allows it in Settings; moving the mouse there always shows the screen again.
+- Connections to this computer: Settings lists who connected, when, for how long and how, and a notification appears whenever someone connects.
+- remotedesk://connect/<ID> links: right-click a favorite to copy one. Opening it connects at once, so it works from Shortcuts, Siri, Raycast, Alfred, a Stream Deck or a desktop shortcut.
+
 ## [0.1.15] - 2026-10-17
 
 ### Changed

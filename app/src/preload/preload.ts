@@ -16,8 +16,14 @@ const api: Api = {
   clearLog: () => ipcRenderer.send('log-clear'),
   revealLog: () => ipcRenderer.send('log-reveal'),
   setKeepAwake: (enabled) => ipcRenderer.send('keep-awake', enabled),
+  setPrivacyScreen: (enabled, message) => ipcRenderer.send('privacy-screen', enabled, message),
+  onPrivacyOff: (handler) => ipcRenderer.on('privacy-off', () => handler()),
   setTrayState: (state) => ipcRenderer.send('tray-state', state),
   onTrayAction: (handler) => ipcRenderer.on('tray-action', (_e, action) => handler(action)),
+  onDeepLink: (handler) => {
+    ipcRenderer.on('deep-link', (_e, link) => handler(link));
+    return ipcRenderer.invoke('deep-link-ready');
+  },
   setCaptureTarget: (id) => ipcRenderer.invoke('capture-target', id),
   setInputView: (view) => ipcRenderer.send('input-view', view),
   showSessionPanel: (info) => ipcRenderer.send('session-panel', info),

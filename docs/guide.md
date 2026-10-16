@@ -145,6 +145,15 @@ For example, controlling your home PC from school. On the computer you want to r
 4. Leave the computer on and logged in. Remote Desk can't wake a computer that is switched off or
    asleep, and on Windows it can't control the sign-in screen.
 
+**Privacy screen (Windows):** to keep people at home from watching what you do, turn on **Let
+favorites black out this screen** in that computer's Settings. While connected as a favorite, the
+monitor button in the toolbar then blacks out its monitors; you still see everything. Anyone moving
+the mouse there shows the screen again at once.
+
+**Links:** right-click a favorite to copy a `remotedesk://connect/<ID>` link. Opening it connects at
+once, so you can use it in Shortcuts on a Mac (also with Siri), Raycast, Alfred, a Stream Deck or a
+desktop shortcut. A link to a computer that isn't a favorite only fills in the ID.
+
 On the road, connecting over mobile data works too. A sharp picture uses about 3–5 GB per hour;
 **Quality → Save data** uses much less.
 
@@ -160,6 +169,7 @@ move the mouse to the top edge.
 | Arrows | **Full screen**. |
 | Two screens | **Monitor**, shown only when the remote computer has more than one. Show one monitor at a time (sharpest picture) or **all monitors side by side**, arranged as they are on that computer. Side by side, you can drag a window from one monitor to the other; the label above each monitor switches back to just that one. Your choice is remembered for that computer. |
 | Gauge | **Quality**. **Automatic** keeps a sharp 1920 px and drops frames (60 → 30 fps) when the network or computer can't keep up. **Optimize smoothness** keeps 60 fps at 1280 px for slow networks. **Maximum sharpness** sends the full resolution at 30 fps. **Save data** keeps 1920 px at up to 30 fps and about 3 Mbit/s, for mobile data. The choice is remembered. |
+| Monitor with a line | **Privacy screen**: blacks out the remote computer's monitors. Only for favorites, on Windows, when its owner allowed it. |
 | Speaker | **Sound** of the remote computer: play it or mute it here. The choice is remembered. Windows always shares its sound; a Mac needs macOS 14.2 or later and asks for permission the first time. |
 | Eye | **View only**: you see the screen but mouse and keyboard are not sent. |
 | Keyboard | **Send a shortcut** your own system would otherwise catch (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
@@ -199,6 +209,16 @@ The light/dark switch is at the top right.
 
 Devices that may connect to this computer without the password and without asking. Remove one to
 take its access away at once, or use **Remove all and replace the key**.
+
+### Connections to this computer
+
+Who connected, when, for how long, with control or view only, and whether as a favorite or with the
+password. A notification also appears whenever someone connects. Kept on this computer only.
+
+### Let favorites black out this screen (Windows)
+
+See the privacy screen in [Reach your computer while you are away](#reach-your-computer-while-you-are-away).
+Leave it off on computers other people use.
 
 ### Start at login and run in the background, keep awake
 
@@ -246,6 +266,8 @@ with the app version filled in.
   police or your internet provider never ask for remote access. It is a common scam.
 - Nobody gets in without you clicking **Allow**, except devices you added to favorites yourself.
 - Approving a favorite pauses remote control, so the other side can't click Allow for you.
+- The privacy screen only works for favorites, only when you allowed it, and moving the mouse at the
+  computer always shows the screen again. Every connection is listed in Settings with a notification.
   Unanswered prompts close by themselves after a minute and count as Deny.
 - The session panel always shows who is connected; moving your own mouse takes priority.
 - The password is never sent anywhere. It is the key that encrypts the connection handshake.

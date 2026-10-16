@@ -17,16 +17,19 @@ export type Answer = {
   accepted: boolean;
   reason?: AnswerReason;
   control?: boolean;
+  // The viewer may black out the host's monitors (favorite, allowed by the host, Windows).
+  privacy?: boolean;
   screen?: { width: number; height: number };
 };
 
 // Host -> viewer: whether remote input is currently accepted (view-only or paused by the host).
-export type SessionStatus = { control: boolean };
+// `privacy`: this computer's monitors are blacked out (privacy screen) right now.
+export type SessionStatus = { control: boolean; privacy?: boolean };
 
 // Viewer -> host session settings: stream quality and which monitor to show.
 // 'saver' keeps 1920 px but limits frame rate and data, e.g. on mobile data.
 export type Quality = 'auto' | 'speed' | 'quality' | 'saver';
-export type Control = { quality?: Quality; view?: string };
+export type Control = { quality?: Quality; view?: string; privacy?: boolean };
 
 // Host monitors, positioned as arranged in the host's display settings.
 export type DisplayInfo = { id: string; primary: boolean; x: number; y: number; width: number; height: number };

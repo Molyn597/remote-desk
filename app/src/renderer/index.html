@@ -220,6 +220,13 @@
                   <span class="hint" data-i18n="settings.backgroundHint"></span>
                 </span>
               </label>
+              <label class="option win-only">
+                <input type="checkbox" id="setting-allow-privacy" />
+                <span>
+                  <strong data-i18n="settings.allowPrivacy"></strong>
+                  <span class="hint" data-i18n="settings.allowPrivacyHint"></span>
+                </span>
+              </label>
               <label class="option">
                 <input type="checkbox" id="setting-show-tray" />
                 <span>
@@ -292,6 +299,13 @@
           </form>
 
           <div class="settings">
+            <div class="settings-group">
+              <h3 class="section-title" data-i18n="history.title"></h3>
+              <p class="hint" data-i18n="history.hint"></p>
+              <div class="trusted-list" id="history-list"></div>
+              <p class="hint" id="history-empty" data-i18n="history.empty"></p>
+              <button type="button" class="small-button remove" id="history-clear" data-i18n="history.clear" hidden></button>
+            </div>
             <div class="settings-group" id="diagnostics">
               <h3 class="section-title" data-i18n="log.title"></h3>
               <p class="hint" data-i18n="log.hint"></p>
@@ -471,6 +485,9 @@
         <button class="tool" id="tool-audio">
           <svg class="audio-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" /></svg>
           <svg class="audio-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z" /><path d="M16 9l5 6M21 9l-5 6" /></svg>
+        </button>
+        <button class="tool" id="tool-privacy" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2" /><path d="M8 21h8M12 17v4M5 7l14 7" /></svg>
         </button>
         <button class="tool" id="tool-viewonly" data-i18n-title="toolbar.viewOnly">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>

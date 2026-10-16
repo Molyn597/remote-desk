@@ -8,7 +8,11 @@ import { loadIdentity, openSecret, sealSecret } from './identity';
 import { currentLanguage, setLanguage, t, type MessageKey } from './i18n';
 import { isOnline } from './network';
 import {
+  addHistory,
   addRecent,
+  clearHistory,
+  finishHistory,
+  loadHistory,
   loadHostId,
   loadMyDevices,
   loadRecent,
@@ -70,6 +74,7 @@ function showPage(page: Page) {
   }
   if (page === 'settings') {
     fillSettingsForm();
+    renderHistory();
     void renderLog();
   }
   if (page === 'permissions') void refreshPermissions();
@@ -158,6 +163,7 @@ const host = new Host(config.platform, {
       })
     ).choice,
   pickerTitle: () => t('files.pickTitle'),
+  privacyMessage: (visitor) => t('privacy.overlay', { who: describeVisitor(visitor) }),
   onFileSent: (name) => {
     new Notification(t('files.sentTitle'), { body: t('files.sentBody', { name }) });
   },
@@ -168,6 +174,14 @@ const host = new Host(config.platform, {
     if (path) notice.onclick = () => window.api.revealFile(path);
   },
   onSessionChange: (session, error) => {
+    // A new session: remember it and say so, also when this computer is in the background.
+    if (session && !hostSession) {
+      addHistory({ at: session.startedAt, id: session.id, name: session.name, trusted: session.trusted, control: session.canControl });
+      new Notification(t('history.notifyTitle'), {
+        body: t(session.canControl ? 'history.notifyControl' : 'history.notifyView', { who: describeVisitor(session) }),
+      });
+    }
+    if (!session && hostSession) finishHistory(hostSession.startedAt);
     hostSession = session;
     sendBackground();
     $('host-banner').hidden = !session;
@@ -178,6 +192,9 @@ const host = new Host(config.platform, {
     }
   },
 });
+
+window.api.onPrivacyOff(() => host.privacyLifted());
+host.setPrivacyAllowed(settings.allowPrivacy);
 
 window.api.onSessionAction((action) => {
   if (action === 'disconnect') host.disconnect();
@@ -462,10 +479,16 @@ function renderMyDevices() {
       const connect = document.createElement('button');
       connect.type = 'button';
       connect.className = 'favorite-connect';
-      connect.title = t('favorites.connect', { id: formatId(device.id) });
+      connect.title = `${t('favorites.connect', { id: formatId(device.id) })}\n${t('favorites.linkHint')}`;
       connect.innerHTML = STAR_ICON;
       connect.append(device.name || formatId(device.id));
       connect.addEventListener('click', () => void connectTrusted(device));
+      // Right-click copies a remotedesk:// link for Shortcuts, Raycast or a desktop shortcut.
+      connect.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        window.api.copyText(`remotedesk://connect/${device.id}`);
+        setStatus(t('favorites.linkCopied', { name: device.name || formatId(device.id) }));
+      });
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'favorite-remove';
@@ -611,6 +634,20 @@ function sendBackground() {
   });
 }
 
+// remotedesk://connect/<id>: favorites connect at once, other computers get the ID filled in.
+function openLink(link: { action: 'connect'; id: string }) {
+  showPage('home');
+  const device = loadMyDevices().find((d) => d.id === link.id);
+  if (device) {
+    if (!viewerSession && !viewerBusy) void connectTrusted(device);
+    return;
+  }
+  $<HTMLInputElement>('partner-id').value = formatId(link.id);
+  usePassword = false;
+  syncTrustedNote();
+  $('partner-password').focus();
+}
+
 window.api.onTrayAction((action) => {
   if (action.type === 'copy-id') window.api.copyText(hostId);
   if (action.type === 'copy-password') window.api.copyText(password);
@@ -622,6 +659,41 @@ window.api.onTrayAction((action) => {
     const device = loadMyDevices().find((d) => d.id === action.id);
     if (device && !viewerSession) void connectTrusted(device);
   }
+});
+
+function renderHistory() {
+  const records = loadHistory();
+  const dateFormat = new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'medium', timeStyle: 'short' });
+  $('history-empty').hidden = records.length > 0;
+  $('history-clear').hidden = records.length === 0;
+  $('history-list').replaceChildren(
+    ...records.slice(0, 30).map((r) => {
+      const row = document.createElement('div');
+      row.className = 'trusted-row';
+      const text = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = describeVisitor({ name: r.name, id: r.id });
+      const meta = document.createElement('small');
+      const length = r.seconds === undefined ? t('history.ongoing') : formatDuration(r.seconds);
+      meta.textContent = [
+        dateFormat.format(r.at),
+        length,
+        t(r.control ? 'history.control' : 'history.view'),
+        r.trusted ? t('history.favorite') : t('history.password'),
+      ].join(' · ');
+      text.append(name, meta);
+      row.append(text);
+      return row;
+    }),
+  );
+}
+
+const formatDuration = (seconds: number) =>
+  seconds < 60 ? t('history.seconds', { n: String(seconds) }) : t('history.minutes', { n: String(Math.round(seconds / 60)) });
+
+$('history-clear').addEventListener('click', () => {
+  clearHistory();
+  renderHistory();
 });
 
 function renderTrusted() {
@@ -667,6 +739,7 @@ function fillSettingsForm() {
   $<HTMLInputElement>('setting-background').checked = settings.runInBackground;
   $<HTMLInputElement>('setting-keep-awake').checked = settings.keepAwake;
   $<HTMLInputElement>('setting-show-tray').checked = settings.showTray;
+  $<HTMLInputElement>('setting-allow-privacy').checked = settings.allowPrivacy;
   $<HTMLSelectElement>('setting-language').value = settings.language;
   refreshSelects();
   for (const radio of networkRadios()) radio.checked = radio.value === (settings.serverUrl ? 'own' : 'public');
@@ -696,6 +769,7 @@ $('settings-form').addEventListener('submit', (e) => {
     runInBackground: $<HTMLInputElement>('setting-background').checked,
     keepAwake: $<HTMLInputElement>('setting-keep-awake').checked,
     showTray: $<HTMLInputElement>('setting-show-tray').checked,
+    allowPrivacy: $<HTMLInputElement>('setting-allow-privacy').checked,
     language: $<HTMLSelectElement>('setting-language').value as Settings['language'],
     serverUrl,
     turnUrl: $<HTMLInputElement>('setting-turn-url').value.trim(),
@@ -711,6 +785,7 @@ $('settings-form').addEventListener('submit', (e) => {
   saveSettings(settings);
   logInfo('settings', `saved (${settings.serverUrl ? 'own server' : 'public network'}${settings.turnUrl ? ', TURN set' : ''}, language ${settings.language}, background ${settings.runInBackground ? 'on' : 'off'}, keep awake ${settings.keepAwake ? 'on' : 'off'})`);
   window.api.setKeepAwake(settings.keepAwake);
+  host.setPrivacyAllowed(settings.allowPrivacy);
   applyLanguage();
   renderNetwork();
   if (networkChanged && !host.active) restartHost();
@@ -890,6 +965,7 @@ document.querySelectorAll('select').forEach(enhanceSelect);
 window.api.setKeepAwake(settings.keepAwake);
 applyTheme();
 applyLanguage();
+void window.api.onDeepLink(openLink).then((link) => link && openLink(link));
 void refreshPermissions();
 showNotesAfterUpdate();
 restartHost();

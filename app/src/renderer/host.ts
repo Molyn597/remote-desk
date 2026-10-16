@@ -69,6 +69,8 @@ export interface HostEvents {
   onFileReceived(name: string, path: string | null): void;
   onFileSent(name: string): void;
   pickerTitle(): string;
+  // Shown on this computer's blacked-out monitors.
+  privacyMessage(visitor: Visitor): string;
 }
 
 const cleanName = (value: unknown) =>
@@ -125,6 +127,9 @@ export class Host {
   private proofWaiters = new Map<string, (signature: string) => void>();
   // While the favorite prompt is open the viewer's input is blocked, so it can't approve itself.
   private approving = false;
+  // Privacy screen: allowed by the owner in Settings, for favorites only, Windows only.
+  private privacyAllowed = false;
+  private privacy = false;
 
   constructor(
     private readonly platform: string,
@@ -279,6 +284,7 @@ export class Host {
         void this.tuneSender();
       }
       if (typeof data?.view === 'string') this.switchView(peerId, data.view);
+      if (typeof data?.privacy === 'boolean') this.setPrivacy(data.privacy);
     };
     return link;
   }
@@ -349,8 +355,40 @@ export class Host {
     const s = this.session;
     if (!s || !s.canControl || s.paused === paused) return;
     s.paused = paused;
-    s.link.send.status({ control: !paused }, s.peerId);
+    this.sendStatus();
     this.events.onSessionChange({ ...s });
+  }
+
+  private sendStatus() {
+    const s = this.session;
+    if (s) s.link.send.status({ control: s.canControl && !s.paused, privacy: this.privacy }, s.peerId);
+  }
+
+  private privacyAvailable() {
+    const s = this.session;
+    return Boolean(this.privacyAllowed && this.platform === 'win32' && s?.trusted && s.canControl);
+  }
+
+  setPrivacyAllowed(allowed: boolean) {
+    this.privacyAllowed = allowed;
+    if (!allowed) this.setPrivacy(false);
+  }
+
+  private setPrivacy(on: boolean) {
+    const s = this.session;
+    if (!s || (on && !this.privacyAvailable()) || on === this.privacy) return;
+    this.privacy = on;
+    logInfo('host', on ? 'privacy screen on' : 'privacy screen off');
+    window.api.setPrivacyScreen(on, this.events.privacyMessage(s));
+    this.sendStatus();
+  }
+
+  // Someone at this computer moved the mouse, which always lifts the privacy screen.
+  privacyLifted() {
+    if (!this.privacy) return;
+    this.privacy = false;
+    logInfo('host', 'privacy screen lifted by local mouse');
+    this.sendStatus();
   }
 
   private isPending({ peerId, link }: Peer) {
@@ -473,7 +511,8 @@ export class Host {
     const screen = { width: capture.width, height: capture.height };
     logInfo('host', `session started (${canControl ? 'control' : 'view only'}${trusted ? ', trusted' : ''}, ${this.displays.length} monitor(s), ${screen.width}×${screen.height})`);
     watchConnection('host', link.room.getPeers()[peerId]);
-    link.send.answer({ accepted: true, control: canControl, screen }, peerId);
+    this.privacy = false;
+    link.send.answer({ accepted: true, control: canControl, screen, privacy: this.privacyAvailable() }, peerId);
     link.send.layout({ displays: this.displays, view: this.view, screen }, peerId);
     // A verified trusted device gets the key to come back without the password.
     if (trusted) link.send.pair({ secret: loadTrustSecret() }, peerId);
@@ -536,6 +575,8 @@ export class Host {
   private endSession(notifyPeer: boolean, error?: 'capture' | 'partnerLeft') {
     const s = this.session;
     if (!s) return;
+    if (this.privacy) window.api.setPrivacyScreen(false, '');
+    this.privacy = false;
     this.session = undefined;
     logInfo('host', `session ended (${notifyPeer ? 'disconnected here' : error ?? 'stopped'}, ${Math.round((Date.now() - s.startedAt) / 1000)} s)`);
     if (notifyPeer) s.link.send.bye(s.peerId);

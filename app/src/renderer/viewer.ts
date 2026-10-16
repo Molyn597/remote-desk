@@ -50,6 +50,10 @@ export interface ViewerSession {
   onFavorite?: (result: 'added' | 'declined' | 'saveFailed') => void;
   // False when the host granted view-only access or paused control.
   canControl: boolean;
+  // Privacy screen on the host (black monitors there): available, and on right now.
+  privacyAvailable: boolean;
+  privacy: boolean;
+  onPrivacyChange?: (on: boolean) => void;
   onControlChange?: (canControl: boolean) => void;
   sendInput(ev: InputEvent): void;
   sendControl(control: Control): void;
@@ -251,6 +255,8 @@ export class Viewer {
         hostPlatform: this.hostPlatform,
         hostName: this.hostName,
         canControl: data.control !== false,
+        privacyAvailable: data.privacy === true,
+        privacy: false,
         screen: validScreen(data.screen),
         sendInput: (ev) => void input.send(ev, { target: peerId }),
         sendControl: (c) => void control.send(c, { target: peerId }),
@@ -292,9 +298,16 @@ export class Viewer {
     };
     status.onMessage = (data, { peerId }) => {
       if (!session || peerId !== this.hostPeer || typeof data?.control !== 'boolean') return;
-      session.canControl = data.control;
-      logInfo('viewer', `host ${data.control ? 'resumed' : 'paused'} control`);
-      session.onControlChange?.(data.control);
+      if (data.control !== session.canControl) {
+        session.canControl = data.control;
+        logInfo('viewer', `host ${data.control ? 'resumed' : 'paused'} control`);
+        session.onControlChange?.(data.control);
+      }
+      if (typeof data.privacy === 'boolean' && data.privacy !== session.privacy) {
+        session.privacy = data.privacy;
+        logInfo('viewer', `privacy screen ${data.privacy ? 'on' : 'off'}`);
+        session.onPrivacyChange?.(data.privacy);
+      }
     };
     room.onPeerStream = (stream, peerId) => {
       if (peerId !== this.hostPeer) return;

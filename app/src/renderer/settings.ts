@@ -13,6 +13,7 @@ export interface Settings {
   runInBackground: boolean; // start at login and stay in the tray/menu bar
   keepAwake: boolean; // don't let the computer sleep (the screen may turn off)
   showTray: boolean; // show the menu bar/tray icon even when not running in the background
+  allowPrivacy: boolean; // favorites may black out this computer's monitors (Windows)
   remoteAudio: boolean; // play the remote computer's sound while viewing
 }
 
@@ -38,6 +39,7 @@ const DEFAULTS: Settings = {
   runInBackground: false,
   keepAwake: false,
   showTray: false,
+  allowPrivacy: false,
   remoteAudio: true,
 };
 
@@ -98,6 +100,32 @@ export function removeMyDevice(id: string) {
 export function touchMyDevice(id: string) {
   write(MY_DEVICES_KEY, loadMyDevices().map((d) => (d.id === id ? { ...d, lastConnected: Date.now() } : d)));
 }
+
+// Who connected to this computer and when; kept on this computer only.
+export interface ConnectionRecord {
+  at: number;
+  id: string;
+  name: string;
+  trusted: boolean;
+  control: boolean;
+  seconds?: number;
+}
+
+const HISTORY_KEY = 'connectionHistory';
+const MAX_HISTORY = 100;
+
+export const loadHistory = (): ConnectionRecord[] => read<ConnectionRecord[]>(HISTORY_KEY, []);
+
+export function addHistory(record: ConnectionRecord) {
+  write(HISTORY_KEY, [record, ...loadHistory()].slice(0, MAX_HISTORY));
+}
+
+// Fills in how long the latest session lasted.
+export function finishHistory(at: number) {
+  write(HISTORY_KEY, loadHistory().map((r) => (r.at === at ? { ...r, seconds: Math.round((Date.now() - at) / 1000) } : r)));
+}
+
+export const clearHistory = () => write(HISTORY_KEY, []);
 
 export function loadHostId(): string {
   let id = String(read<unknown>(HOST_ID_KEY, ''));

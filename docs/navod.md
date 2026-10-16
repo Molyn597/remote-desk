@@ -142,6 +142,15 @@ Například ovládání domácího PC ze školy. Na počítači, ke kterému se 
 4. Nechte počítač zapnutý a přihlášený. Remote Desk neumí probudit vypnutý ani uspaný počítač
    a na Windows neovládne přihlašovací obrazovku.
 
+**Soukromá obrazovka (Windows):** aby doma nikdo neviděl, co děláte, zapněte v Nastavení toho počítače
+**Dovolit oblíbeným zatemnit tuto obrazovku**. Když jste připojení jako oblíbené zařízení, tlačítko
+s monitorem v liště pak jeho monitory zatemní; vy vidíte vše jako dřív. Jakmile tam někdo pohne
+myší, obrazovka se hned zobrazí.
+
+**Odkazy:** pravým tlačítkem na oblíbený počítač zkopírujete odkaz `remotedesk://connect/<ID>`. Jeho
+otevření vás rovnou připojí, takže ho můžete použít ve Zkratkách na Macu (i přes Siri), v Raycastu,
+Alfredu, na Stream Decku nebo jako zástupce na ploše. Odkaz na počítač mimo oblíbené jen vyplní ID.
+
 Na cestách funguje i připojení přes mobilní data. Ostrý obraz spotřebuje zhruba 3–5 GB za hodinu,
 **Kvalita → Šetřit data** výrazně méně.
 
@@ -156,6 +165,7 @@ Lišta je nahoře uprostřed okna. Po chvíli se schová a objeví se, když naj
 | Šipky ven | **Celá obrazovka**. |
 | Dva monitory | **Monitor**, jen když má vzdálený počítač víc monitorů. Zobrazí jeden monitor (nejostřejší obraz), nebo **všechny monitory vedle sebe** tak, jak jsou na tom počítači uspořádané. Vedle sebe můžete okno přetáhnout z jednoho monitoru na druhý; štítek nad monitorem přepne zpět jen na něj. Volba se pro daný počítač pamatuje. |
 | Tachometr | **Kvalita**. **Automaticky** drží ostrých 1920 px a když síť nebo počítač nestíhá, ubere snímky (60 → 30 fps). **Upřednostnit plynulost** drží 60 fps při 1280 px pro slabou síť. **Maximální ostrost** posílá plné rozlišení při 30 fps. **Šetřit data** drží 1920 px při nejvýš 30 fps a asi 3 Mbit/s, pro mobilní data. Volba se pamatuje. |
+| Monitor s čárou | **Soukromá obrazovka**: zatemní monitory vzdáleného počítače. Jen pro oblíbené, na Windows a když to jeho majitel povolil. |
 | Reproduktor | **Zvuk** vzdáleného počítače: přehrávat, nebo u vás ztlumit. Volba se pamatuje. Windows zvuk sdílí vždy; Mac potřebuje macOS 14.2 nebo novější a poprvé se zeptá na povolení. |
 | Oko | **Jen sledovat**: obraz vidíte, ale myš a klávesnice se neposílají. |
 | Klávesnice | **Odeslat zkratku**, kterou by jinak zachytil váš systém (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
@@ -195,6 +205,16 @@ světlého a tmavého vzhledu je vpravo nahoře.
 
 Zařízení, která se k tomuto počítači připojí bez hesla a bez dotazu. Odebráním zařízení mu přístup
 hned seberete, nebo použijte **Odebrat vše a vyměnit klíč**.
+
+### Připojení k tomuto počítači
+
+Kdo se připojil, kdy, na jak dlouho, jestli s ovládáním nebo jen se sledováním a jestli jako oblíbené
+zařízení, nebo s heslem. Při každém připojení se navíc ukáže oznámení. Ukládá se jen v tomto počítači.
+
+### Dovolit oblíbeným zatemnit tuto obrazovku (Windows)
+
+Viz soukromá obrazovka v [Přístup k počítači, když nejste doma](#přístup-k-počítači-když-nejste-doma).
+Na počítačích, které používají i jiní lidé, to nechte vypnuté.
 
 ### Běh na pozadí a nedovolit uspání
 
@@ -244,6 +264,8 @@ s vyplněnou verzí aplikace.
 - Nikdo se nepřipojí, dokud nekliknete na **Povolit**, kromě zařízení, která jste si sami přidali do oblíbených.
 - Při schvalování oblíbených je vzdálené ovládání pozastavené, takže za vás druhá strana Povolit
   nekline. Nezodpovězené dotazy se po minutě samy zavřou jako Odmítnout.
+- Soukromá obrazovka funguje jen pro oblíbené, jen když ji povolíte, a pohyb myší u počítače ji vždy
+  zruší. Každé připojení je v Nastavení s oznámením.
 - Panel relace vždy ukazuje, kdo je připojený; pohyb vlastní myší má přednost.
 - Heslo se nikam neposílá. Je to klíč, kterým se šifruje navázání spojení.
 - Obraz, zvuk i ovládání jdou přímo mezi počítači a jsou šifrované (WebRTC, DTLS-SRTP).
