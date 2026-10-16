@@ -147,8 +147,9 @@ For example, controlling your home PC from school. On the computer you want to r
 
 **Privacy screen (Windows):** to keep people at home from watching what you do, turn on **Let
 favorites black out this screen** in that computer's Settings. While connected as a favorite, the
-monitor button in the toolbar then blacks out its monitors; you still see everything. Anyone moving
-the mouse there shows the screen again at once.
+monitor button in the toolbar then blacks out its monitors; you still see everything. The session
+bar stays visible on top of the black screen, so someone there can always pause or end the session,
+and moving the mouse there shows the screen again at once.
 
 **Links:** right-click a favorite to copy a `remotedesk://connect/<ID>` link. Opening it connects at
 once, so you can use it in Shortcuts on a Mac (also with Siri), Raycast, Alfred, a Stream Deck or a

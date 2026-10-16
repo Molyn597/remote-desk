@@ -4,7 +4,8 @@ import { log } from './log';
 // Privacy screen: black windows over every monitor that screen capture leaves out
 // (Windows 10 2004+ excludes content-protected windows), so the person controlling this
 // computer from elsewhere sees the desktop while the monitors here stay dark.
-// Clicks and keys go through to the windows underneath.
+// Clicks and keys go through to the windows underneath. The session panel (who is connected,
+// Pause, Disconnect) stays above the black screen, so the person here can always end it.
 let overlays: BrowserWindow[] = [];
 
 const page = (message: string) =>
@@ -15,7 +16,7 @@ background:#000;color:#8a8d91;font:15px -apple-system,'Segoe UI',sans-serif;text
 
 export const privacyOn = () => overlays.length > 0;
 
-export function setPrivacyScreen(enabled: boolean, message = '') {
+export function setPrivacyScreen(enabled: boolean, message = '', keepAbove?: BrowserWindow) {
   if (!enabled) {
     if (!overlays.length) return;
     overlays.forEach((w) => w.destroy());
@@ -43,7 +44,11 @@ export function setPrivacyScreen(enabled: boolean, message = '') {
     w.setIgnoreMouseEvents(true);
     w.setAlwaysOnTop(true, 'screen-saver');
     void w.loadURL(page(message));
-    w.once('ready-to-show', () => w.showInactive());
+    w.once('ready-to-show', () => {
+      w.showInactive();
+      // Topmost windows stack in the order they were raised: put the panel back on top.
+      if (keepAbove && !keepAbove.isDestroyed()) keepAbove.moveTop();
+    });
     return w;
   });
   log('info', 'privacy', `screen hidden on ${overlays.length} monitor(s)`);

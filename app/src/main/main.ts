@@ -351,7 +351,7 @@ app.whenReady().then(async () => {
     return link ?? null;
   });
   ipcMain.on('privacy-screen', (e, enabled: unknown, message: unknown) => {
-    if (fromMainWindow(e) && sessionState === 'host') setPrivacyScreen(enabled === true, String(message ?? '').slice(0, 300));
+    if (fromMainWindow(e) && sessionState === 'host') setPrivacyScreen(enabled === true, String(message ?? '').slice(0, 300), panel);
   });
   ipcMain.on('keep-awake', (e, enabled: unknown) => {
     if (fromMainWindow(e)) setKeepAwake(enabled === true);

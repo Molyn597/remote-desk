@@ -3,6 +3,12 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.18] - 2026-10-17
+
+### Changed
+
+- Privacy screen: the session bar (who is connected, Pause, Disconnect) now stays visible on top of the black screen, so the person at the computer can always end the session. The text on the black screen says so.
+
 ## [0.1.17] - 2026-10-17
 
 ### Changed

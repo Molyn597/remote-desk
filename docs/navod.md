@@ -144,8 +144,9 @@ Například ovládání domácího PC ze školy. Na počítači, ke kterému se 
 
 **Soukromá obrazovka (Windows):** aby doma nikdo neviděl, co děláte, zapněte v Nastavení toho počítače
 **Dovolit oblíbeným zatemnit tuto obrazovku**. Když jste připojení jako oblíbené zařízení, tlačítko
-s monitorem v liště pak jeho monitory zatemní; vy vidíte vše jako dřív. Jakmile tam někdo pohne
-myší, obrazovka se hned zobrazí.
+s monitorem v liště pak jeho monitory zatemní; vy vidíte vše jako dřív. Lišta relace zůstává vidět
+i nad černou obrazovkou, takže ji člověk u počítače může kdykoli pozastavit nebo ukončit, a jakmile
+tam pohne myší, obrazovka se hned zobrazí.
 
 **Odkazy:** pravým tlačítkem na oblíbený počítač zkopírujete odkaz `remotedesk://connect/<ID>`. Jeho
 otevření vás rovnou připojí, takže ho můžete použít ve Zkratkách na Macu (i přes Siri), v Raycastu,
