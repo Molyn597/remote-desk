@@ -1364,3 +1364,83 @@ h3 {
 .error-text {
   color: var(--danger);
 }
+
+.transfer.offer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  max-width: 360px;
+}
+
+.transfer.offer span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transfer.offer button {
+  flex: none;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.transfer.clickable {
+  cursor: pointer;
+}
+
+/* Windows/Linux: our header sits under the native window buttons (window controls overlay). */
+body.platform-win32::before,
+body.platform-linux::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 36px;
+  -webkit-app-region: drag;
+}
+
+.platform-win32 .app,
+.platform-linux .app {
+  padding-top: 44px;
+}
+
+/* Keep the remote screen clear of the native window buttons (not needed in full screen). */
+html:not(:fullscreen) .platform-win32 .viewer-stage,
+html:not(:fullscreen) .platform-linux .viewer-stage {
+  top: 36px;
+}
+
+html:not(:fullscreen) .platform-win32 .viewer-drag,
+html:not(:fullscreen) .platform-linux .viewer-drag {
+  height: 36px;
+}
+
+/* Labels over each monitor in the side-by-side view. */
+.display-chips {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.display-chip {
+  position: absolute;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgb(20 21 22 / 72%);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  opacity: 0.75;
+  transition: opacity 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.display-chip:hover {
+  opacity: 1;
+}

@@ -1,4 +1,4 @@
-import type { InputEvent, Quality } from '../../../shared/protocol';
+import { ALL_DISPLAYS, type InputEvent, type Quality } from '../../../shared/protocol';
 import { t, type MessageKey } from './i18n';
 import type { ViewerSession } from './viewer';
 import { attachInputCapture } from './viewer-input';
@@ -140,13 +140,14 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   });
 
   // Menus.
-  const menus = ['menu-quality', 'menu-keys'];
+  const menus = ['menu-monitor', 'menu-quality', 'menu-keys'];
   const closeMenus = () => menus.forEach((id) => ($(id).hidden = true));
   const toggleMenu = (id: string) => {
     const open = $(id).hidden;
     closeMenus();
     $(id).hidden = !open;
   };
+  listen($('tool-monitor'), 'click', () => toggleMenu('menu-monitor'));
   listen($('tool-quality'), 'click', () => toggleMenu('menu-quality'));
   listen($('tool-keys'), 'click', () => toggleMenu('menu-keys'));
   listen(document, 'mousedown', (e: MouseEvent) => {
@@ -171,6 +172,104 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     });
   }
   renderQuality();
+
+  // Host monitors: one at a time or all side by side; the choice is remembered per computer.
+  const viewKey = `remote-desk-view:${options.partnerId}`;
+  const chips = $('display-chips');
+  let restored = false;
+  const chooseView = (view: string) => {
+    try {
+      localStorage.setItem(viewKey, view);
+    } catch {
+      // storage unavailable
+    }
+    session.sendControl({ view });
+    closeMenus();
+    video.focus();
+  };
+  const monitorName = (index: number, primary: boolean) =>
+    t(primary ? 'display.primary' : 'display.number', { n: String(index + 1) });
+  const renderMonitors = () => {
+    const layout = session.layout;
+    const displays = layout?.displays ?? [];
+    $('monitor-tools').hidden = displays.length < 2;
+    const menu = $('menu-monitor');
+    menu.replaceChildren();
+    if (!layout || displays.length < 2) return;
+    const add = (label: string, view: string) => {
+      const button = document.createElement('button');
+      button.textContent = label;
+      button.classList.toggle('selected', layout.view === view);
+      button.addEventListener('click', () => chooseView(view));
+      menu.append(button);
+    };
+    displays.forEach((d, i) => add(monitorName(i, d.primary), d.id));
+    add(t('display.all'), ALL_DISPLAYS);
+  };
+  // In the side-by-side view each monitor gets a label that switches to it alone.
+  let chipsFrame = 0;
+  const placeChips = () => {
+    chipsFrame = 0;
+    const layout = session.layout;
+    chips.replaceChildren();
+    if (layout?.view !== ALL_DISPLAYS || !video.videoWidth) return;
+    const box = video.getBoundingClientRect();
+    const scale = Math.min(box.width / video.videoWidth, box.height / video.videoHeight);
+    const picture = {
+      x: box.left + (box.width - video.videoWidth * scale) / 2,
+      y: box.top + (box.height - video.videoHeight * scale) / 2,
+      width: video.videoWidth * scale,
+      height: video.videoHeight * scale,
+    };
+    const left = Math.min(...layout.displays.map((d) => d.x));
+    const top = Math.min(...layout.displays.map((d) => d.y));
+    const unionWidth = Math.max(...layout.displays.map((d) => d.x + d.width)) - left;
+    const unionHeight = Math.max(...layout.displays.map((d) => d.y + d.height)) - top;
+    const visible = stage.getBoundingClientRect();
+    layout.displays.forEach((d, i) => {
+      const x = picture.x + ((d.x - left + d.width / 2) / unionWidth) * picture.width;
+      const y = picture.y + ((d.y - top) / unionHeight) * picture.height;
+      if (x < visible.left || x > visible.right || y < visible.top || y > visible.bottom) return;
+      const chip = document.createElement('button');
+      chip.className = 'display-chip';
+      chip.textContent = t('display.only', { name: monitorName(i, d.primary) });
+      chip.style.left = `${x}px`;
+      chip.style.top = `${Math.max(y, visible.top) + 8}px`;
+      chip.addEventListener('click', () => chooseView(d.id));
+      chips.append(chip);
+    });
+  };
+  const schedulePlaceChips = () => {
+    if (!chipsFrame) chipsFrame = requestAnimationFrame(placeChips);
+  };
+  session.onLayout = () => {
+    renderMonitors();
+    applyScale();
+    schedulePlaceChips();
+    const layout = session.layout;
+    if (restored || !layout) return;
+    restored = true;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(viewKey);
+    } catch {
+      // storage unavailable
+    }
+    const available =
+      saved === ALL_DISPLAYS ? layout.displays.length > 1 : layout.displays.some((d) => d.id === saved);
+    if (saved && saved !== layout.view && available) session.sendControl({ view: saved });
+  };
+  if (session.layout) session.onLayout();
+  listen(video, 'resize', schedulePlaceChips);
+  listen(window, 'resize', schedulePlaceChips);
+  listen(stage, 'scroll', schedulePlaceChips);
+  listen($('tool-scale'), 'click', schedulePlaceChips);
+  cleanups.push(() => {
+    cancelAnimationFrame(chipsFrame);
+    chips.replaceChildren();
+    $('monitor-tools').hidden = true;
+    session.onLayout = undefined;
+  });
 
   // Shortcuts for the host's platform.
   const keysMenu = $('menu-keys');
@@ -269,6 +368,48 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     clearTimeout(transferTimer);
     transfer.hidden = true;
     overlay.hidden = true;
+  });
+
+  // Downloading from the remote computer: files copied there, or picked on its screen.
+  const formatSize = (bytes: number) =>
+    bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} kB`;
+  const offerPill = $('file-offer');
+  let offeredIds: string[] = [];
+  let savedPath: string | null = null;
+  session.onOffer = (offers) => {
+    offeredIds = offers.map((o) => o.id);
+    const size = formatSize(offers.reduce((sum, o) => sum + o.size, 0));
+    $('file-offer-text').textContent =
+      offers.length === 1
+        ? t('files.offerOne', { name: offers[0].name, size })
+        : t('files.offerMany', { count: String(offers.length), size });
+    offerPill.hidden = false;
+    reveal();
+  };
+  onClick('file-offer-get', () => {
+    offerPill.hidden = true;
+    if (offeredIds.length) session.requestFiles({ ids: offeredIds });
+  });
+  onClick('tool-download', () => {
+    if (!session.canControl) return showTransfer(t('files.notAllowed'), true, 4000);
+    session.requestFiles({ pick: true });
+    showTransfer(t('files.pickHint'), false, 15000);
+  });
+  session.onDownloadProgress = (name, fraction) =>
+    showTransfer(t('files.receiving', { name, percent: String(Math.round(fraction * 100)) }));
+  session.onDownloaded = (name, path) => {
+    savedPath = path;
+    if (path) showTransfer(t('files.saved', { name }), false, 10000);
+    else showTransfer(t('files.saveFailed', { name }), true, 8000);
+    transfer.classList.toggle('clickable', Boolean(path));
+  };
+  listen(transfer, 'click', () => {
+    if (savedPath && transfer.classList.contains('clickable')) window.api.revealFile(savedPath);
+  });
+  cleanups.push(() => {
+    offerPill.hidden = true;
+    transfer.classList.remove('clickable');
+    session.onOffer = session.onDownloadProgress = session.onDownloaded = undefined;
   });
 
   // Auto-hide unless pinned, hovered or a menu is open.

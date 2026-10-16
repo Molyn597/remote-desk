@@ -1,9 +1,12 @@
-import { mkdir, open } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, open, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { app } from 'electron';
-import { MAX_FILE_BYTES } from '../../../shared/protocol';
+import { MAX_FILE_BYTES, type FileOffer } from '../../../shared/protocol';
 
 const saved = new Set<string>();
+// Files this computer offered to the viewer (copied or picked here); only these can be read.
+const offered = new Map<string, string>();
 
 // Keeps only a plain file name: no folders, no hidden or reserved names.
 function safeName(name: unknown): string {
@@ -36,3 +39,37 @@ export async function saveReceivedFile(name: unknown, data: unknown): Promise<st
 
 // Only files this app saved can be revealed in Finder/Explorer.
 export const wasSaved = (target: unknown) => typeof target === 'string' && saved.has(target);
+
+// Registers regular files (not folders) that may be sent to the viewer.
+export async function offerFiles(paths: string[]): Promise<FileOffer[]> {
+  const offers: FileOffer[] = [];
+  for (const file of paths.slice(0, 20)) {
+    try {
+      const info = await stat(file);
+      if (!info.isFile() || info.size > MAX_FILE_BYTES) continue;
+      const id = randomUUID();
+      offered.set(id, file);
+      offers.push({ id, name: path.basename(file), size: info.size });
+    } catch {
+      // vanished or unreadable
+    }
+  }
+  return offers;
+}
+
+export async function readOfferedFile(id: unknown): Promise<{ name: string; data: ArrayBuffer } | null> {
+  const file = typeof id === 'string' ? offered.get(id) : undefined;
+  if (!file) return null;
+  try {
+    const info = await stat(file);
+    if (!info.isFile() || info.size > MAX_FILE_BYTES) return null;
+    const buffer = await readFile(file);
+    return { name: path.basename(file), data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) };
+  } catch {
+    return null;
+  }
+}
+
+export function clearOffers() {
+  offered.clear();
+}

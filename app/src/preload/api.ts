@@ -1,4 +1,4 @@
-import type { InputEvent } from '../../../shared/protocol';
+import type { DisplayInfo, FileOffer, InputEvent } from '../../../shared/protocol';
 
 export type SessionState = 'idle' | 'host' | 'viewer';
 export type PermissionStatus = 'granted' | 'denied' | 'not-determined' | 'restricted' | 'unknown';
@@ -50,6 +50,10 @@ export interface Api {
   confirmConnection(text: ConfirmText): Promise<ConfirmResult>;
   setSessionState(state: SessionState): void;
   sendInput(ev: InputEvent): void;
+  // Host monitors: list them, pick the one the next capture records, and map the mouse to a view.
+  getDisplays(): Promise<DisplayInfo[]>;
+  setCaptureTarget(id: string): Promise<void>;
+  setInputView(view: string): void;
   // Main window <-> session panel.
   showSessionPanel(info: SessionPanelInfo | null): void;
   onSessionAction(handler: (action: SessionAction) => void): void;
@@ -62,6 +66,10 @@ export interface Api {
   onClipboardChange(handler: (text: string) => void): void;
   writeClipboard(text: string): void;
   saveReceivedFile(name: string, data: ArrayBuffer): Promise<string | null>;
+  onClipboardFiles(handler: (offers: FileOffer[]) => void): void;
+  pickFilesToSend(title: string): Promise<FileOffer[]>;
+  readOfferedFile(id: string): Promise<{ name: string; data: ArrayBuffer } | null>;
+  setTheme(theme: 'light' | 'dark'): void;
   revealFile(path: string): void;
   // What's new and feedback.
   getChangelog(): Promise<string>;

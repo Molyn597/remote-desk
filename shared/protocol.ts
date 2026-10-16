@@ -22,9 +22,16 @@ export type Answer = {
 // Host -> viewer: whether remote input is currently accepted (view-only or paused by the host).
 export type SessionStatus = { control: boolean };
 
-// Viewer -> host session settings.
+// Viewer -> host session settings: stream quality and which monitor to show.
 export type Quality = 'auto' | 'speed' | 'quality';
-export type Control = { quality: Quality };
+export type Control = { quality?: Quality; view?: string };
+
+// Host monitors, positioned as arranged in the host's display settings.
+export type DisplayInfo = { id: string; primary: boolean; x: number; y: number; width: number; height: number };
+// The view is a monitor ID or ALL_DISPLAYS (every monitor in one picture).
+export const ALL_DISPLAYS = 'all';
+// Host -> viewer: its monitors, what is shown now and the picture size in pixels.
+export type DisplayLayout = { displays: DisplayInfo[]; view: string; screen: { width: number; height: number } };
 
 export const MAX_NAME_LENGTH = 40;
 
@@ -32,9 +39,14 @@ export const MAX_NAME_LENGTH = 40;
 export type ClipboardData = { text: string };
 export const MAX_CLIPBOARD_CHARS = 100_000;
 
-// Viewer -> host file transfer: the file is the binary payload, this is its metadata.
+// File transfer in both directions: the file is the binary payload, this is its metadata.
 export type FileMeta = { name: string; size: number };
 export const MAX_FILE_BYTES = 500 * 1024 * 1024;
+
+// Host -> viewer: files copied (Ctrl/Cmd+C) or picked on the host, ready to download.
+export type FileOffer = { id: string; name: string; size: number };
+// Viewer -> host: send these offered files, or open a file picker on the host.
+export type FileRequest = { ids?: string[]; pick?: boolean };
 
 // Viewer -> host input. Coordinates are normalized to 0..1 of the host's primary display.
 

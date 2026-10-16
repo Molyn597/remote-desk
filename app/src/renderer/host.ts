@@ -1,5 +1,6 @@
 import type { Room } from '@trystero-p2p/ws-relay';
 import {
+  ALL_DISPLAYS,
   MAX_CLIPBOARD_CHARS,
   MAX_FILE_BYTES,
   MAX_NAME_LENGTH,
@@ -7,7 +8,11 @@ import {
   type Challenge,
   type ClipboardData,
   type Control,
+  type DisplayInfo,
+  type DisplayLayout,
   type FileMeta,
+  type FileOffer,
+  type FileRequest,
   type Hello,
   type InputEvent,
   type Proof,
@@ -15,6 +20,7 @@ import {
   type SessionStatus,
 } from '../../../shared/protocol';
 import type { ConfirmChoice } from '../preload/api';
+import { captureView, type Capture } from './capture';
 import { challengeText, fingerprint, newNonce, verify } from './identity';
 import { join } from './network';
 import { addTrusted, loadTrusted, touchTrusted, type Settings } from './settings';
@@ -51,6 +57,8 @@ export interface HostEvents {
   confirm(visitor: Visitor): Promise<{ choice: ConfirmChoice; remember: boolean }>;
   onSessionChange(session: HostSession | null, error?: 'capture' | 'partnerLeft'): void;
   onFileReceived(name: string, path: string | null): void;
+  onFileSent(name: string): void;
+  pickerTitle(): string;
 }
 
 const cleanName = (value: unknown) =>
@@ -70,11 +78,19 @@ export class Host {
   private session?: HostSession & { peerId: string };
   private pendingPeer?: string;
   private stream?: MediaStream;
+  private capture?: Capture;
+  private displays: DisplayInfo[] = [];
+  private view = '';
+  private quality: Quality = 'auto';
+  private switching = Promise.resolve();
+  private sendLayout?: (data: DisplayLayout, peerId: string) => void;
   private declined = new Map<string, number>();
   private hostId = '';
   private proofWaiters = new Map<string, (signature: string) => void>();
   private sendChallenge?: (data: Challenge, peerId: string) => void;
   private sendClip?: (data: ClipboardData, peerId: string) => void;
+  private sendOffer?: (data: FileOffer[], peerId: string) => void;
+  private sendFileTo?: (offer: FileOffer, peerId: string) => Promise<void>;
   private sendHello?: (data: Hello, peerId: string) => void;
   private sendAnswer?: (data: Answer, peerId: string) => void;
   private sendStatus?: (data: SessionStatus, peerId: string) => void;
@@ -106,7 +122,30 @@ export class Host {
     const clip = room.makeAction<ClipboardData>('clip');
     const file = room.makeAction<ArrayBuffer>('file');
     const fileAck = room.makeAction<{ name: string; ok: boolean }>('fileack');
+    const offer = room.makeAction<FileOffer[]>('offer');
+    const request = room.makeAction<FileRequest>('pull');
+    const layout = room.makeAction<DisplayLayout>('displays');
+    this.sendLayout = (data, peerId) => void layout.send(data, { target: peerId });
     this.sendClip = (data, peerId) => void clip.send(data, { target: peerId });
+    this.sendOffer = (data, peerId) => void offer.send(data, { target: peerId });
+    this.sendFileTo = async ({ id }, peerId) => {
+      const read = await window.api.readOfferedFile(id);
+      if (!read || !this.controlAllowed(peerId)) return;
+      const meta: FileMeta = { name: read.name, size: read.data.byteLength };
+      await file.send(read.data, { target: peerId, metadata: meta });
+      this.events.onFileSent(read.name);
+    };
+    // The viewer asks for files copied here, or for a picker on this screen.
+    request.onMessage = async (data, { peerId }) => {
+      if (!this.controlAllowed(peerId)) return;
+      const offers = data?.pick
+        ? await window.api.pickFilesToSend(this.events.pickerTitle())
+        : (Array.isArray(data?.ids) ? data.ids : []).slice(0, 20).map((id) => ({ id: String(id), name: '', size: 0 }));
+      for (const item of offers) {
+        if (!this.controlAllowed(peerId)) break;
+        await this.sendFileTo?.(item, peerId).catch(console.error);
+      }
+    };
     this.sendChallenge = (data, peerId) => void challenge.send(data, { target: peerId });
     this.sendHello = (data, peerId) => void hello.send(data, { target: peerId });
     this.sendAnswer = (data, peerId) => void answer.send(data, { target: peerId });
@@ -151,7 +190,12 @@ export class Host {
       }
     };
     control.onMessage = (data, { peerId }) => {
-      if (peerId === this.session?.peerId && data?.quality in QUALITY_PRESETS) void this.tuneSender(peerId, data.quality);
+      if (peerId !== this.session?.peerId) return;
+      if (typeof data?.quality === 'string' && data.quality in QUALITY_PRESETS) {
+        this.quality = data.quality;
+        void this.tuneSender(peerId);
+      }
+      if (typeof data?.view === 'string') this.switchView(peerId, data.view);
     };
   }
 
@@ -164,6 +208,12 @@ export class Host {
 
   disconnect() {
     this.endSession(true);
+  }
+
+  // Tells the viewer about files copied on this computer; nothing is sent until it asks.
+  offerFiles(offers: FileOffer[]) {
+    const peerId = this.session?.peerId;
+    if (peerId && this.controlAllowed(peerId)) this.sendOffer?.(offers, peerId);
   }
 
   // Sends this computer's clipboard to the viewer; only while it may control us.
@@ -255,12 +305,13 @@ export class Host {
     window.api.watchClipboard(true);
     this.events.onSessionChange({ ...this.session });
 
-    let stream: MediaStream;
+    // The main monitor first; the viewer can switch to another one or to all of them.
+    let capture: Capture;
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 60, max: 60 } },
-        audio: false,
-      });
+      this.displays = await window.api.getDisplays();
+      this.view = this.displays.find((d) => d.primary)?.id ?? '';
+      this.quality = 'auto';
+      capture = await captureView(this.view, this.displays);
     } catch (err) {
       console.error(err);
       this.sendAnswer?.({ accepted: false, reason: 'capture' }, peerId);
@@ -268,24 +319,54 @@ export class Host {
       return;
     }
     if (this.session?.peerId !== peerId) {
-      stream.getTracks().forEach((t) => t.stop());
+      capture.stop();
       return;
     }
-    this.stream = stream;
-    const { width = 0, height = 0 } = stream.getVideoTracks()[0].getSettings();
+    this.capture = capture;
+    this.stream = new MediaStream([capture.track]);
+    window.api.setInputView(this.view);
     window.api.sendInput({ t: 'hello', platform: viewerPlatform });
-    this.sendAnswer?.({ accepted: true, control: canControl, screen: { width, height } }, peerId);
-    await Promise.all(this.room!.addStream(stream, { target: peerId }));
-    await this.tuneSender(peerId, 'auto');
+    const screen = { width: capture.width, height: capture.height };
+    this.sendAnswer?.({ accepted: true, control: canControl, screen }, peerId);
+    this.sendLayout?.({ displays: this.displays, view: this.view, screen }, peerId);
+    await Promise.all(this.room!.addStream(this.stream, { target: peerId }));
+    await this.tuneSender(peerId);
   }
 
-  private async tuneSender(peerId: string, quality: Quality) {
+  // Swaps the picture to another monitor (or all of them) without renegotiating the connection.
+  private switchView(peerId: string, view: string) {
+    this.switching = this.switching.then(async () => {
+      if (this.session?.peerId !== peerId || !this.capture || !this.stream) return;
+      this.displays = await window.api.getDisplays();
+      if (view !== ALL_DISPLAYS && !this.displays.some((d) => d.id === view)) return;
+      if (view === ALL_DISPLAYS && this.displays.length < 2) return;
+      const next = await captureView(view, this.displays).catch((err) => console.error(err));
+      if (!next) return;
+      const old = this.capture;
+      const sender = this.room?.getPeers()[peerId]?.getSenders().find((s) => s.track === old.track);
+      if (this.session?.peerId !== peerId || !sender) return next.stop();
+      await sender.replaceTrack(next.track);
+      this.stream.removeTrack(old.track);
+      this.stream.addTrack(next.track);
+      this.capture = next;
+      old.stop();
+      this.view = view;
+      window.api.setInputView(view);
+      this.sendLayout?.({ displays: this.displays, view, screen: { width: next.width, height: next.height } }, peerId);
+      await this.tuneSender(peerId);
+    });
+  }
+
+  private async tuneSender(peerId: string) {
     const pc = this.room?.getPeers()[peerId];
-    const track = this.stream?.getVideoTracks()[0];
+    const track = this.capture?.track;
     const sender = pc?.getSenders().find((s) => s.track === track);
     if (!sender) return;
-    const preset = QUALITY_PRESETS[quality];
-    const width = track!.getSettings().width ?? 0;
+    const quality = this.quality;
+    const preset = { ...QUALITY_PRESETS[quality] };
+    // All monitors in one picture: allow it to stay twice as wide.
+    if (this.view === ALL_DISPLAYS) preset.maxWidth *= 2;
+    const width = this.capture!.width;
     track!.contentHint = preset.hint;
     const params = sender.getParameters();
     params.degradationPreference = preset.preference;
@@ -309,9 +390,10 @@ export class Host {
     if (notifyPeer) this.sendBye?.(peerId);
     if (this.stream) {
       this.room?.removeStream(this.stream, { target: peerId });
-      this.stream.getTracks().forEach((t) => t.stop());
       this.stream = undefined;
     }
+    this.capture?.stop();
+    this.capture = undefined;
     window.api.setSessionState('idle');
     this.events.onSessionChange(null, error);
   }

@@ -376,11 +376,16 @@
         <div class="drop-overlay" id="drop-overlay" hidden><span id="drop-text"></span></div>
       </div>
       <div class="viewer-drag"></div>
+      <div class="display-chips" id="display-chips"></div>
 
       <div class="toolbar" id="toolbar">
         <span class="toolbar-title" id="viewer-title"></span>
         <span class="conn" id="conn-info"><span class="dot"></span><span id="conn-text">…</span></span>
         <span class="transfer" id="transfer-status" hidden></span>
+        <span class="transfer offer" id="file-offer" hidden>
+          <span id="file-offer-text"></span>
+          <button id="file-offer-get" data-i18n="files.download"></button>
+        </span>
         <span class="control-notice" id="control-notice" data-i18n="toolbar.controlOff" hidden></span>
         <span class="toolbar-sep"></span>
         <button class="tool" id="tool-scale" data-i18n-title="toolbar.original">
@@ -389,6 +394,12 @@
         <button class="tool" id="tool-fullscreen" data-i18n-title="toolbar.fullscreen">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
         </button>
+        <div class="tool-menu" id="monitor-tools" hidden>
+          <button class="tool" id="tool-monitor" data-i18n-title="toolbar.monitor">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="12" height="9" rx="1.5" /><rect x="10" y="9" width="12" height="9" rx="1.5" /><path d="M14 22h4M16 18v4" /></svg>
+          </button>
+          <div class="menu" id="menu-monitor" hidden></div>
+        </div>
         <div class="tool-menu">
           <button class="tool" id="tool-quality" data-i18n-title="toolbar.quality">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20a8 8 0 1 0-8-8M12 12l4-4" /><circle cx="12" cy="12" r="1.5" /></svg>
@@ -415,6 +426,9 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg>
         </button>
         <input type="file" id="file-input" multiple hidden />
+        <button class="tool" id="tool-download" data-i18n-title="toolbar.receiveFile">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg>
+        </button>
         <button class="tool" id="tool-screenshot" data-i18n-title="toolbar.screenshot">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
         </button>

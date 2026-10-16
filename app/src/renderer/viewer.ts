@@ -1,5 +1,6 @@
 import type { Room } from '@trystero-p2p/ws-relay';
 import {
+  ALL_DISPLAYS,
   MAX_CLIPBOARD_CHARS,
   MAX_FILE_BYTES,
   type Answer,
@@ -7,7 +8,10 @@ import {
   type Challenge,
   type ClipboardData,
   type Control,
+  type DisplayLayout,
   type FileMeta,
+  type FileOffer,
+  type FileRequest,
   type Hello,
   type InputEvent,
   type Proof,
@@ -18,6 +22,8 @@ import { join } from './network';
 import type { Settings } from './settings';
 
 const FIND_TIMEOUT_MS = 30_000;
+// Files from the host are accepted only for a while after we asked for them.
+const DOWNLOAD_WINDOW_MS = 10 * 60_000;
 const ACCEPT_TIMEOUT_MS = 60_000;
 
 export type ViewerError = AnswerReason | 'wrongPassword' | 'notFound' | 'noResponse' | 'partnerLeft';
@@ -27,6 +33,9 @@ export interface ViewerSession {
   hostPlatform: string;
   // Size of the host's captured screen in pixels (the stream itself may be downscaled).
   screen?: { width: number; height: number };
+  // The host's monitors and which one is shown; sent again after every switch.
+  layout?: DisplayLayout;
+  onLayout?: () => void;
   // False when the host granted view-only access or paused control.
   canControl: boolean;
   onControlChange?: (canControl: boolean) => void;
@@ -37,6 +46,11 @@ export interface ViewerSession {
   shareClipboard(text: string): void;
   // Resolves to the result reported by the host after it saved the file.
   sendFile(file: File, onProgress: (fraction: number) => void): Promise<FileResult>;
+  // Downloading from the host: files it offered (copied there), or a picker on its screen.
+  requestFiles(request: FileRequest): void;
+  onOffer?: (offers: FileOffer[]) => void;
+  onDownloadProgress?: (name: string, fraction: number) => void;
+  onDownloaded?: (name: string, path: string | null) => void;
   connection(): RTCPeerConnection | undefined;
 }
 
@@ -55,6 +69,19 @@ const validScreen = (s: unknown) => {
     ? { width, height }
     : undefined;
 };
+
+const finite = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 100_000;
+
+function validLayout(data: unknown): DisplayLayout | undefined {
+  const { displays, view, screen } = (data ?? {}) as Partial<DisplayLayout>;
+  if (!Array.isArray(displays) || typeof view !== 'string' || !validScreen(screen)) return;
+  const list = displays
+    .slice(0, 16)
+    .filter((d) => typeof d?.id === 'string' && [d.x, d.y, d.width, d.height].every(finite) && d.width > 0 && d.height > 0)
+    .map((d) => ({ id: d.id.slice(0, 40), primary: d.primary === true, x: d.x, y: d.y, width: d.width, height: d.height }));
+  if (!list.length || (view !== ALL_DISPLAYS && !list.some((d) => d.id === view))) return;
+  return { displays: list, view, screen: validScreen(screen)! };
+}
 
 // Joins the host's room, asks for access and receives its screen.
 export class Viewer {
@@ -97,6 +124,40 @@ export class Viewer {
     const file = room.makeAction<ArrayBuffer>('file');
     const fileAck = room.makeAction<{ name: string; ok: boolean }>('fileack');
     const ackWaiters = new Map<string, (ok: boolean) => void>();
+    const offer = room.makeAction<FileOffer[]>('offer');
+    const request = room.makeAction<FileRequest>('pull');
+    const layout = room.makeAction<DisplayLayout>('displays');
+    let acceptFilesUntil = 0;
+
+    layout.onMessage = (data, { peerId }) => {
+      if (!session || peerId !== this.hostPeer) return;
+      const parsed = validLayout(data);
+      if (!parsed) return;
+      session.layout = parsed;
+      session.screen = parsed.screen;
+      session.onLayout?.();
+    };
+
+    offer.onMessage = (data, { peerId }) => {
+      if (peerId !== this.hostPeer || !Array.isArray(data)) return;
+      const offers = data
+        .filter((o) => typeof o?.id === 'string' && typeof o.name === 'string' && typeof o.size === 'number')
+        .slice(0, 20)
+        .map((o) => ({ id: o.id.slice(0, 64), name: o.name.slice(0, 200), size: o.size }));
+      if (offers.length) session?.onOffer?.(offers);
+    };
+    file.onReceive = ({ peerId, byteLength }) =>
+      peerId === this.hostPeer && Date.now() < acceptFilesUntil && byteLength <= MAX_FILE_BYTES;
+    file.onReceiveProgress = (progress, { peerId, metadata }) => {
+      if (peerId === this.hostPeer) session?.onDownloadProgress?.(String((metadata as FileMeta)?.name ?? ''), progress);
+    };
+    file.onMessage = async (data, { peerId, metadata }) => {
+      if (peerId !== this.hostPeer) return;
+      const name = String((metadata as FileMeta | undefined)?.name ?? 'file').slice(0, 200);
+      const buffer = data instanceof ArrayBuffer ? data : new Uint8Array(data as ArrayBufferLike).slice().buffer;
+      const path = await window.api.saveReceivedFile(name, buffer).catch(() => null);
+      session?.onDownloaded?.(name, path);
+    };
     let session: ViewerSession | undefined;
 
     clip.onMessage = (data, { peerId }) => {
@@ -153,6 +214,11 @@ export class Viewer {
         clipboardEnabled: true,
         shareClipboard: (text) => {
           if (session?.clipboardEnabled && session.canControl) void clip.send({ text }, { target: peerId });
+        },
+        requestFiles: (req) => {
+          if (!session?.canControl) return;
+          acceptFilesUntil = Date.now() + DOWNLOAD_WINDOW_MS;
+          void request.send(req, { target: peerId });
         },
         sendFile: async (f, onProgress) => {
           if (f.size > MAX_FILE_BYTES) return 'tooLarge';

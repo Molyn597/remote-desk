@@ -26,9 +26,10 @@ import type {
   SessionPanelInfo,
   SessionState,
 } from '../preload/api';
-import { handleInput, resetInput, watchLocalMouse } from './input';
+import { listDisplays, viewRect } from './displays';
+import { handleInput, resetInput, setInputView, watchLocalMouse } from './input';
 import { watchClipboard, writeClipboard } from './clipboard';
-import { saveReceivedFile, wasSaved } from './files';
+import { clearOffers, offerFiles, readOfferedFile, saveReceivedFile, wasSaved } from './files';
 import { appId, rawFileUrl, repoUrl } from './repo';
 import { checkForUpdates, getUpdateState, installUpdate, openDownloadPage, setupUpdater } from './updater';
 
@@ -44,8 +45,14 @@ if (process.env.RD_USER_DATA) app.setPath('userData', process.env.RD_USER_DATA);
 let win: BrowserWindow | undefined;
 let panel: BrowserWindow | undefined;
 let sessionState: SessionState = 'idle';
+let captureTarget: string | undefined;
 
 const PANEL_SIZE = { width: 740, height: 64 };
+const TITLE_BAR_HEIGHT = 36;
+const TITLE_BAR = {
+  light: { color: '#e9ebec', symbolColor: '#1c1d1f' },
+  dark: { color: '#131415', symbolColor: '#eceef0' },
+};
 const MAX_CHANGELOG_BYTES = 200_000;
 const OS_NAMES: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 
@@ -94,13 +101,18 @@ function createWindow() {
     minHeight: 620,
     title: 'Remote Desk',
     backgroundColor: '#e9ebec',
-    titleBarStyle: isMac ? 'hiddenInset' : 'default',
+    // macOS: traffic lights over our header. Windows/Linux: native buttons drawn over
+    // our own header (window controls overlay) instead of a white system title bar.
+    titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+    ...(isMac ? {} : { titleBarOverlay: { ...TITLE_BAR.light, height: TITLE_BAR_HEIGHT } }),
     autoHideMenuBar: !isMac,
     ...(isMac ? {} : { icon: APP_ICON }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       sandbox: true,
+      // Showing all monitors draws them into one picture, which must keep going while minimised.
+      backgroundThrottling: false,
     },
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -157,9 +169,13 @@ function showSessionPanel(info: SessionPanelInfo | null) {
 function onSessionState(state: SessionState) {
   if (state !== 'host') {
     resetInput();
+    captureTarget = undefined;
     showSessionPanel(null);
   }
-  if (state === 'idle') void watchClipboard(false, () => {});
+  if (state === 'idle') {
+    void watchClipboard(false, () => {}, () => {});
+    clearOffers();
+  }
   sessionState = state;
   watchLocalMouse(state === 'host');
   setMenu(state === 'viewer');
@@ -237,7 +253,8 @@ app.whenReady().then(async () => {
     try {
       const sources = await desktopCapturer.getSources({ types: ['screen'] });
       const primaryId = String(screen.getPrimaryDisplay().id);
-      const source = sources.find((s) => s.display_id === primaryId) ?? sources[0];
+      const source =
+        sources.find((s) => s.display_id === captureTarget) ?? sources.find((s) => s.display_id === primaryId) ?? sources[0];
       callback(source ? { video: source } : null);
     } catch (err) {
       console.error('screen capture unavailable', err);
@@ -257,13 +274,39 @@ app.whenReady().then(async () => {
   ipcMain.handle('request-permission', (_e, kind: PermissionKind) => requestPermission(kind));
   ipcMain.handle('reset-permission', (e, kind: PermissionKind) => (fromMainWindow(e) ? resetPermission(kind) : false));
   ipcMain.on('clipboard-watch', (e, enabled: boolean) => {
-    if (fromMainWindow(e)) void watchClipboard(Boolean(enabled), (text) => win?.webContents.send('clipboard-changed', text));
+    if (!fromMainWindow(e)) return;
+    void watchClipboard(
+      Boolean(enabled),
+      (text) => win?.webContents.send('clipboard-changed', text),
+      async (paths) => {
+        if (sessionState !== 'host') return;
+        const offers = await offerFiles(paths);
+        if (offers.length) win?.webContents.send('clipboard-files', offers);
+      },
+    );
+  });
+  // The picker opens on the host's screen, where the viewer chooses files remotely.
+  ipcMain.handle('pick-files', async (e, title: unknown) => {
+    if (!win || !fromMainWindow(e) || sessionState !== 'host') return [];
+    win.show();
+    app.focus({ steal: true });
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: String(title ?? ''),
+      properties: ['openFile', 'multiSelections'],
+    });
+    return canceled ? [] : offerFiles(filePaths);
+  });
+  ipcMain.handle('read-offered', (e, id: unknown) =>
+    fromMainWindow(e) && sessionState === 'host' ? readOfferedFile(id) : null,
+  );
+  ipcMain.on('set-theme', (e, theme: unknown) => {
+    if (fromMainWindow(e) && !isMac && (theme === 'light' || theme === 'dark')) win?.setTitleBarOverlay(TITLE_BAR[theme]);
   });
   ipcMain.on('clipboard-write', (e, text: unknown) => {
     if (fromMainWindow(e) && sessionState !== 'idle') void writeClipboard(text);
   });
   ipcMain.handle('save-file', (e, name: unknown, data: unknown) =>
-    fromMainWindow(e) && sessionState === 'host' ? saveReceivedFile(name, data) : null,
+    fromMainWindow(e) && sessionState !== 'idle' ? saveReceivedFile(name, data) : null,
   );
   ipcMain.on('reveal-file', (e, target: unknown) => {
     if (fromMainWindow(e) && wasSaved(target)) shell.showItemInFolder(target as string);
@@ -302,6 +345,14 @@ app.whenReady().then(async () => {
     if (action === 'pause' || action === 'resume' || action === 'disconnect') {
       win?.webContents.send('session-action', action);
     }
+  });
+  ipcMain.handle('displays', (e) => (fromMainWindow(e) ? listDisplays() : []));
+  // The next screen capture records this monitor (one getDisplayMedia call per monitor).
+  ipcMain.handle('capture-target', (e, id: unknown) => {
+    if (fromMainWindow(e)) captureTarget = typeof id === 'string' ? id : undefined;
+  });
+  ipcMain.on('input-view', (e, view: unknown) => {
+    if (sessionState === 'host' && fromMainWindow(e)) setInputView(viewRect(view));
   });
   ipcMain.on('input', (e, ev) => {
     if (sessionState !== 'host' || !fromMainWindow(e)) return;

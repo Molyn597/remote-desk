@@ -3,6 +3,17 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.5] - 2026-10-16
+
+### Added
+
+- Multiple monitors: when the remote computer has more than one, the Monitor button in the toolbar shows any one of them or all side by side, arranged as they are on that computer. Side by side, you can drag windows between monitors, then switch back to one monitor for a sharper picture. The choice is remembered per computer.
+- Get files from the remote computer: copy a file there (Ctrl/Cmd+C) and the toolbar offers a Download button, or use Get files to open a file picker on the remote screen. Files are saved to your Downloads.
+
+### Changed
+
+- Windows: the window title bar now matches the app's light or dark theme instead of a plain white frame.
+
 ## [0.1.4] - 2026-10-16
 
 ### Added

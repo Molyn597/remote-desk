@@ -87,11 +87,13 @@ move the mouse to the top edge.
 | --- | --- |
 | Frame | Switches between **fit to window** and **original size**. At original size the picture pans when you reach an edge. |
 | Arrows | **Full screen**. |
+| Two screens | **Monitor**, shown only when the remote computer has more than one. Show one monitor at a time (sharpest picture) or **all monitors side by side**, arranged as they are on that computer. Side by side, you can drag a window from one monitor to the other; the label above each monitor switches back to just that one. Your choice is remembered for that computer. |
 | Gauge | **Quality**: automatic, optimize speed (slow networks) or optimize quality. |
 | Eye | **View only**: you see the screen but mouse and keyboard are not sent. |
 | Keyboard | **Send a shortcut** your own system would otherwise catch (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
 | Clipboard | **Shared clipboard** on or off. While on, text you copy on one computer can be pasted on the other (only when control is allowed). |
 | Arrow up | **Send files** to the remote computer. You can also drop files onto the remote screen. They are saved to Downloads there (up to 500 MB each). |
+| Arrow down | **Get files** from the remote computer. A file picker opens on the remote screen; choose the files there and they are saved to your Downloads. When you copy a file on the remote computer (Ctrl/Cmd+C), the toolbar offers a **Download** button. |
 | Camera | **Save a screenshot** of the remote screen as PNG. |
 | Pin | Keeps the toolbar visible. |
 | Cross | **Disconnect**. |

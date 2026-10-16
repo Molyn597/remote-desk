@@ -86,11 +86,13 @@ Lišta je nahoře uprostřed okna. Po chvíli se schová a znovu se ukáže, kdy
 | --- | --- |
 | Rámeček | Přepíná mezi **přizpůsobit oknu** a **skutečnou velikostí**. Ve skutečné velikosti se obraz posouvá, když najedete k okraji. |
 | Šipky ven | **Celá obrazovka**. |
+| Dva monitory | **Monitor**, jen když má vzdálený počítač víc monitorů. Zobrazí jeden monitor (nejostřejší obraz), nebo **všechny monitory vedle sebe** tak, jak jsou na tom počítači uspořádané. Vedle sebe můžete okno přetáhnout z jednoho monitoru na druhý; štítek nad monitorem přepne zpět jen na něj. Volba se pro daný počítač pamatuje. |
 | Tachometr | **Kvalita**: automaticky, upřednostnit rychlost (pro slabou síť), nebo upřednostnit kvalitu. |
 | Oko | **Jen sledovat**: obraz vidíte, ale myš a klávesnice se neposílají. |
 | Klávesnice | **Odeslat zkratku**, kterou by jinak zachytil váš vlastní systém (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
 | Schránka | **Sdílená schránka** zapnout/vypnout. Když je zapnutá, text zkopírovaný na jednom počítači vložíte na druhém (jen při povoleném ovládání). |
 | Šipka nahoru | **Odeslat soubory** na vzdálený počítač. Soubory můžete i přetáhnout do obrazu. Uloží se tam do Stažených souborů (max. 500 MB na soubor). |
+| Šipka dolů | **Stáhnout soubory** ze vzdáleného počítače. Na vzdálené ploše se otevře výběr souborů; vyberte je tam a uloží se k vám do Stažených souborů. Když na vzdáleném počítači soubor zkopírujete (Ctrl/Cmd+C), lišta nabídne tlačítko **Stáhnout**. |
 | Fotoaparát | **Uložit snímek** vzdálené obrazovky jako PNG. |
 | Připínáček | Lišta zůstane trvale zobrazená. |
 | Křížek | **Odpojit**. |

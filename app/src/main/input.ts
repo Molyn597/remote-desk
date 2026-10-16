@@ -1,4 +1,5 @@
 import robot from '@jitsi/robotjs';
+import type { Rectangle } from 'electron';
 import type { InputEvent, MouseButton } from '../../../shared/protocol';
 
 const BUTTONS = new Set<MouseButton>(['left', 'right', 'middle']);
@@ -18,6 +19,8 @@ let viewerPlatform = '';
 let lastInjected: { x: number; y: number; at: number } | undefined;
 let localUntil = 0;
 let watchTimer: ReturnType<typeof setInterval> | undefined;
+// The part of the desktop the viewer sees; mouse positions are relative to it.
+let view: Rectangle | undefined;
 
 robot.setMouseDelay(0);
 robot.setKeyboardDelay(0);
@@ -70,9 +73,9 @@ export function handleInput(ev: InputEvent) {
       viewerPlatform = String(ev.platform);
       return;
     case 'move': {
-      const { width, height } = robot.getScreenSize();
-      const x = Math.round(clamp01(ev.x) * (width - 1));
-      const y = Math.round(clamp01(ev.y) * (height - 1));
+      const area = view ?? { x: 0, y: 0, ...robot.getScreenSize() };
+      const x = area.x + Math.round(clamp01(ev.x) * (area.width - 1));
+      const y = area.y + Math.round(clamp01(ev.y) * (area.height - 1));
       // macOS only recognises drags from drag events, not plain moves.
       if (pressed.size) robot.dragMouse(x, y);
       else robot.moveMouse(x, y);
@@ -103,7 +106,13 @@ export function handleInput(ev: InputEvent) {
   }
 }
 
+export function setInputView(rect: Rectangle | undefined) {
+  view = rect;
+  if (process.platform === 'win32') robot.updateScreenMetrics(); // monitors may have changed
+}
+
 export function resetInput() {
   releaseButtons();
   viewerPlatform = '';
+  view = undefined;
 }

@@ -89,6 +89,8 @@ const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 function applyTheme() {
   const dark = settings.theme === 'auto' ? darkQuery.matches : settings.theme === 'dark';
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  // The remote screen is shown on black, so the native window buttons go dark too.
+  window.api.setTheme(dark || !$('viewer').hidden ? 'dark' : 'light');
 }
 
 darkQuery.addEventListener('change', applyTheme);
@@ -132,6 +134,10 @@ const host = new Host(config.platform, {
       deny: t('confirm.deny'),
       remember: visitor.key ? t('confirm.remember') : undefined,
     }),
+  pickerTitle: () => t('files.pickTitle'),
+  onFileSent: (name) => {
+    new Notification(t('files.sentTitle'), { body: t('files.sentBody', { name }) });
+  },
   onFileReceived: (name, path) => {
     const notice = new Notification(t(path ? 'files.receivedTitle' : 'files.receivedFailed', { name }), {
       body: path ? t('files.receivedBody', { name }) : '',
@@ -201,6 +207,7 @@ const viewer = new Viewer(config.platform, {
     setStatus('');
     $('viewer-title').textContent = t('session.connectedTo', { id: formatId(viewerPartnerId) });
     $('viewer').hidden = false;
+    applyTheme();
     window.api.setSessionState('viewer');
     viewerSession = session;
     detachToolbar = attachToolbar(session, {
@@ -218,6 +225,7 @@ const viewer = new Viewer(config.platform, {
     viewerSession = undefined;
     video.srcObject = null;
     $('viewer').hidden = true;
+    applyTheme();
     window.api.setSessionState('idle');
     setViewerBusy(false);
     setStatus(error ? t(VIEWER_ERRORS[error]) : '', Boolean(error && error !== 'partnerLeft'));
@@ -527,6 +535,7 @@ for (const button of document.querySelectorAll<HTMLElement>('[data-reset]')) {
 }
 
 // Shared clipboard: whichever role is active forwards local copies to the partner.
+window.api.onClipboardFiles((offers) => host.offerFiles(offers));
 window.api.onClipboardChange((text) => {
   host.shareClipboard(text);
   viewerSession?.shareClipboard(text);
