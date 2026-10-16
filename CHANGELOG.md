@@ -3,6 +3,12 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.3] - 2026-10-16
+
+### Fixed
+
+- The Close button in "What's new" no longer shows an arrow as if it opened something.
+
 ## [0.1.2] - 2026-10-15
 
 ### Added

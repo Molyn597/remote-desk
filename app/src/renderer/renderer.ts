@@ -448,6 +448,9 @@ async function openWhatsNew(mode: 'update' | 'installed') {
   action.dataset.mode = mode;
   action.hidden = mode === 'update' && !updateOffered();
   $('whats-new-action-label').textContent = mode === 'update' ? updateActionLabel() : t('news.close');
+  // "Close" doesn't lead anywhere, so it gets no arrow.
+  $('whats-new-action-arrow').hidden = mode !== 'update';
+  action.classList.toggle('no-arrow', mode !== 'update');
   $('whats-new').hidden = false;
   action.focus();
 }
