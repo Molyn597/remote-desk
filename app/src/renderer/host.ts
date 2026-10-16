@@ -27,6 +27,7 @@ import {
 } from '../../../shared/protocol';
 import type { ConfirmChoice } from '../preload/api';
 import { captureAudio, captureView, type Capture } from './capture';
+import { preferHardwareCodec, readEncoderStats } from './encoding';
 import { challengeText, fingerprint, newNonce, verify } from './identity';
 import { logError, logInfo, logWarn, watchConnection } from './log';
 import { join } from './network';
@@ -44,6 +45,13 @@ const QUALITY_PRESETS: Record<
   quality: { bitrate: 25_000_000, maxWidth: Infinity, fps: 30, preference: 'maintain-resolution', hint: 'detail' },
   saver: { bitrate: 3_000_000, maxWidth: 1920, fps: 30, preference: 'maintain-resolution', hint: 'detail' },
 };
+
+preferHardwareCodec();
+
+// How often the host checks its encoder, and how many checks in a row may be CPU-bound
+// before "Automatic" drops from 60 to 30 fps.
+const ENCODER_CHECK_MS = 5000;
+const CPU_LIMIT_CHECKS = 2;
 
 // After a refusal the same peer can't pop up another dialog for a while.
 const DECLINE_COOLDOWN_MS = 20_000;
@@ -134,6 +142,9 @@ export class Host {
   // Privacy screen: allowed by the owner in Settings, for favorites only, Windows only.
   private privacyAllowed = false;
   private privacy = false;
+  private encoderTimer = 0;
+  private cpuChecks = 0;
+  private cpuLimited = false;
   // After a dropped connection the same device (proven by its key) may come straight back.
   private rejoin?: { key: string; canControl: boolean; trusted: boolean; until: number };
 
@@ -541,7 +552,10 @@ export class Host {
     // A verified trusted device gets the key to come back without the password.
     if (trusted) link.send.pair({ secret: loadTrustSecret() }, peerId);
     await Promise.all(link.room.addStream(this.stream, { target: peerId }));
+    this.cpuLimited = false;
+    this.cpuChecks = 0;
     await this.tuneSender();
+    this.watchEncoder();
   }
 
   // Swaps the picture to another monitor (or all of them) without renegotiating the connection.
@@ -579,7 +593,15 @@ export class Host {
     const preset = { ...QUALITY_PRESETS[this.quality] };
     // All monitors in one picture: allow it to stay twice as wide.
     if (this.view === ALL_DISPLAYS) preset.maxWidth *= 2;
-    const width = this.capture!.width;
+    // The computer can't encode 60 fps in time: ask for 30 so frames keep coming evenly.
+    if (this.cpuLimited && this.quality === 'auto') preset.fps = 30;
+    // One monitor: have the system capture it already scaled down (on the graphics chip), so a
+    // Retina or 4K screen isn't captured at full size only to be shrunk again before encoding.
+    if (this.view !== ALL_DISPLAYS) {
+      const limit = Number.isFinite(preset.maxWidth) ? { width: { max: preset.maxWidth }, height: { max: preset.maxWidth } } : {};
+      await track.applyConstraints({ ...limit, frameRate: { max: 60 } }).catch((err) => logInfo('host', `capture size not limited: ${err}`));
+    }
+    const width = track.getSettings().width || this.capture!.width;
     track.contentHint = preset.hint;
     const params = sender.getParameters();
     params.degradationPreference = preset.preference;
@@ -589,6 +611,30 @@ export class Host {
       enc.scaleResolutionDownBy = Math.max(1, width / preset.maxWidth);
     }
     await sender.setParameters(params).catch(console.error);
+  }
+
+  // Logs the encoder now and then and eases off when the processor can't keep up.
+  private watchEncoder() {
+    clearInterval(this.encoderTimer);
+    let tick = 0;
+    let lastLine = '';
+    this.encoderTimer = window.setInterval(async () => {
+      const s = this.session;
+      const track = this.capture?.track;
+      const sender = s && s.link.room.getPeers()[s.peerId]?.getSenders().find((x) => x.track === track);
+      if (!sender) return;
+      const st = await readEncoderStats(sender).catch(() => undefined);
+      if (!st) return;
+      const line = `encoder ${st.codec} ${st.encoder}${st.hardware === undefined ? '' : st.hardware ? ' (hardware)' : ' (software)'}, ${st.width}×${st.height} @${st.fps} fps, limited by ${st.limitedBy}`;
+      if (tick++ % 3 === 0 || line.split(',')[0] !== lastLine.split(',')[0]) logInfo('host', line);
+      lastLine = line;
+      this.cpuChecks = st.limitedBy === 'cpu' ? this.cpuChecks + 1 : 0;
+      if (!this.cpuLimited && this.cpuChecks >= CPU_LIMIT_CHECKS && this.quality === 'auto') {
+        this.cpuLimited = true;
+        logInfo('host', 'encoder is CPU-bound: Automatic quality drops to 30 fps');
+        await this.tuneSender();
+      }
+    }, ENCODER_CHECK_MS);
   }
 
   private peerGone(peerId: string, link: Link) {
@@ -609,6 +655,7 @@ export class Host {
       s.link.room.removeStream(this.stream, { target: s.peerId });
       this.stream = undefined;
     }
+    clearInterval(this.encoderTimer);
     this.capture?.stop();
     this.capture = undefined;
     this.audio?.stop();

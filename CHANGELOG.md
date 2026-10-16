@@ -3,6 +3,20 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.3] - 2026-10-17
+
+Test version of the smoother picture. Installed by beta testers; regular versions don't update to it.
+
+### Fixed
+
+- Much smoother, faster picture, especially when controlling a Mac: the screen is now sent as H.264, which the graphics chip encodes, instead of a format the processor had to encode on its own. In tests the sending computer needs about a quarter of the processor time.
+- A Retina or 4K screen is now captured already scaled to the size that is sent, instead of at full size and shrunk afterwards.
+- In Automatic quality, a computer whose processor still can't keep up drops from 60 to 30 frames per second instead of stuttering.
+
+### Added
+
+- The diagnostics log now records which codec and encoder the picture uses, the real resolution and frame rate, and what limits it (network or processor), and why the computer's sound couldn't be shared. Hovering over the connection info in the session toolbar shows the decoder details.
+
 ## [0.1.19] - 2026-10-17
 
 ### Added

@@ -1,4 +1,5 @@
 import { ALL_DISPLAYS, type DisplayInfo } from '../../../shared/protocol';
+import { logInfo } from './log';
 
 // Side-by-side picture limits: big enough to read, small enough to encode in real time.
 const ALL_MAX_WIDTH = 3840;
@@ -26,8 +27,11 @@ export async function captureAudio(): Promise<MediaStreamTrack | undefined> {
   try {
     const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
     stream.getVideoTracks().forEach((t) => t.stop());
-    return stream.getAudioTracks()[0];
-  } catch {
+    const track = stream.getAudioTracks()[0];
+    if (!track) logInfo('host', 'system sound: the system returned no audio track');
+    return track;
+  } catch (err) {
+    logInfo('host', `system sound unavailable: ${err instanceof Error ? `${err.name}: ${err.message}` : err}`);
     return undefined;
   }
 }

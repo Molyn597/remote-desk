@@ -1,6 +1,7 @@
 import { ALL_DISPLAYS, type InputEvent, type PowerAction, type Quality } from '../../../shared/protocol';
 import { t, type MessageKey } from './i18n';
 import type { ViewerSession } from './viewer';
+import { logInfo } from './log';
 import { attachInputCapture } from './viewer-input';
 
 const REVEAL_ZONE_PX = 70;
@@ -8,6 +9,8 @@ const HIDE_DELAY_MS = 2500;
 const PAN_EDGE_PX = 48;
 const PAN_SPEED = 18;
 const STATS_INTERVAL_MS = 1000;
+// Every 15th stats tick also goes to the diagnostics log.
+const STATS_LOG_EVERY = 15;
 const QUALITY_KEY = 'remote-desk-quality';
 const QUALITIES: Quality[] = ['auto', 'speed', 'quality', 'saver'];
 
@@ -678,6 +681,7 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   // Connection stats: round-trip time, frame rate, bitrate, direct or relayed.
   let lastBytes = 0;
   let lastTime = 0;
+  let statsTick = 0;
   const statsTimer = window.setInterval(async () => {
     const pc = session.connection();
     if (!pc) return;
@@ -688,6 +692,7 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     let relayed = false;
     let bitrate: number | undefined;
     let pairId: string | undefined;
+    let decoding: string | undefined;
     stats.forEach((s) => {
       if (s.type === 'transport' && s.selectedCandidatePairId) pairId = s.selectedCandidatePairId;
     });
@@ -698,6 +703,9 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
         if (lastTime) bitrate = ((s.bytesReceived - lastBytes) * 8) / ((s.timestamp - lastTime) / 1000);
         lastBytes = s.bytesReceived;
         lastTime = s.timestamp;
+        const codec = s.codecId ? stats.get(s.codecId)?.mimeType?.replace('video/', '') : undefined;
+        const delay = s.jitterBufferEmittedCount ? Math.round((s.jitterBufferDelay / s.jitterBufferEmittedCount) * 1000) : undefined;
+        decoding = `${codec ?? '?'} ${s.decoderImplementation ?? '?'}${s.powerEfficientDecoder ? ' (hardware)' : ''}, buffer ${delay ?? '?'} ms, dropped ${s.framesDropped ?? 0}, lost ${s.packetsLost ?? 0}`;
       }
       if (s.type === 'candidate-pair' && (s.id === pairId || (!pairId && s.nominated && s.state === 'succeeded'))) {
         if (s.currentRoundTripTime !== undefined) rtt = Math.round(s.currentRoundTripTime * 1000);
@@ -715,6 +723,8 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
       t(relayed ? 'conn.relay' : 'conn.direct'),
     ];
     $('conn-text').textContent = parts.filter(Boolean).join(' · ');
+    if (decoding) $('conn-info').title = decoding;
+    if (decoding && statsTick++ % STATS_LOG_EVERY === 0) logInfo('viewer', `${parts.filter(Boolean).join(', ')}; decoder ${decoding}`);
     const info = $('conn-info');
     info.classList.toggle('good', rtt !== undefined && rtt < 80);
     info.classList.toggle('fair', rtt !== undefined && rtt >= 80 && rtt < 200);
