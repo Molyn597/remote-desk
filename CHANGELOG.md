@@ -3,17 +3,7 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
-## [0.2.0-beta.2] - 2026-10-17
-
-Test version of 0.2.0. Installed by hand; regular versions don't update to it.
-
-### Added
-
-- Beta versions switch on the What's new page: get new features early, or turn it off to go back to the newest stable version (even if its number is lower).
-
-## [0.2.0-beta.1] - 2026-10-17
-
-Test version of 0.2.0, part 1. Installed by hand; regular versions don't update to it.
+## [0.1.19] - 2026-10-17
 
 ### Added
 
@@ -21,6 +11,7 @@ Test version of 0.2.0, part 1. Installed by hand; regular versions don't update 
 - Smart zoom: magnify the remote screen 1.5× or 2× and the view follows your mouse, so text stays readable on a small display.
 - Power menu in the session toolbar: lock, sleep, restart or shut down the remote computer. Restart and shut down ask for a second click, and the computer shows a notification.
 - Automatic reconnect: when the connection drops, Remote Desk reconnects on its own, and after a remote restart it waits for the computer to come back. The controlled computer lets the same device back in without asking again for two minutes.
+- Beta versions switch on the What's new page: get new features early, or turn it off to go back to the newest stable version.
 
 ### Changed
 
