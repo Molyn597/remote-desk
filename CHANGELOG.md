@@ -3,6 +3,14 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.17] - 2026-10-17
+
+### Changed
+
+- The app moves: panels and cards glide in at start-up and when switching pages, buttons lift and press, the light/dark switch fades, a new password rolls in like a departures board, copy buttons turn into a tick, the Online dot breathes, and a new favorite pops in with a spinning star.
+- Connecting shows a light sweeping across the Connect button, and the remote screen opens out of the window. The session toolbar, its menus and messages slide in smoothly.
+- With "Reduce motion" turned on in the system, animations are switched off.
+
 ## [0.1.16] - 2026-10-17
 
 ### Added

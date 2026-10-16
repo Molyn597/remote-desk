@@ -65,10 +65,53 @@ function generatePassword(length = 8): string {
 
 const formatId = (id: string) => id.replace(/(\d{3})(?=\d)/g, '$1 ');
 
+// Motion
+
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Panels and cards land one after another.
+function animateIn(elements: Iterable<Element>) {
+  [...elements].forEach((el, i) => {
+    const node = el as HTMLElement;
+    node.classList.remove('anim-in');
+    node.style.setProperty('--i', String(i));
+    void node.offsetWidth; // restart the animation
+    node.classList.add('anim-in');
+    node.addEventListener('animationend', () => node.classList.remove('anim-in'), { once: true });
+  });
+}
+
+const pageParts = (page: Element) =>
+  page.querySelectorAll(':scope > .page-header, :scope .card, :scope > .panel, :scope .settings-group, :scope .permission-row, :scope .help > *');
+
+// Characters roll like a departures board before settling on the new text.
+function rollText(el: HTMLElement, text: string) {
+  if (reduceMotion()) {
+    el.textContent = text;
+    return;
+  }
+  const chars = 'abcdefghijkmnpqrstuvwxyz23456789';
+  const start = performance.now();
+  const frame = () => {
+    const elapsed = performance.now() - start;
+    const settled = Math.floor(elapsed / 45);
+    el.textContent = [...text]
+      .map((c, i) => (i < settled ? c : chars[Math.floor(Math.random() * chars.length)]))
+      .join('');
+    if (settled < text.length) requestAnimationFrame(frame);
+    else el.textContent = text;
+  };
+  frame();
+}
+
 // Navigation
+
+let currentPage: Page = 'home';
 
 function showPage(page: Page) {
   for (const p of ['home', 'settings', 'permissions', 'news', 'help'] as const) $(`page-${p}`).hidden = p !== page;
+  if (page !== currentPage) animateIn(pageParts($(`page-${page}`)));
+  currentPage = page;
   for (const item of document.querySelectorAll<HTMLElement>('.nav-item')) {
     item.classList.toggle('active', item.dataset.nav === page);
   }
@@ -114,7 +157,10 @@ darkQuery.addEventListener('change', applyTheme);
 $('theme-toggle').addEventListener('click', () => {
   settings = { ...settings, theme: document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark' };
   saveSettings(settings);
+  // Colours glide over instead of flipping.
+  document.documentElement.classList.add('theme-anim');
   applyTheme();
+  setTimeout(() => document.documentElement.classList.remove('theme-anim'), 400);
 });
 
 // Host
@@ -210,7 +256,11 @@ $('my-password').textContent = password;
 $('new-password').addEventListener('click', () => {
   if (host.active) return;
   password = generatePassword();
-  $('my-password').textContent = password;
+  rollText($('my-password'), password);
+  const button = $('new-password');
+  button.classList.remove('spinning');
+  void button.offsetWidth;
+  button.classList.add('spinning');
   restartHost();
 });
 $('host-disconnect').addEventListener('click', () => host.disconnect());
@@ -218,12 +268,20 @@ $('host-disconnect').addEventListener('click', () => host.disconnect());
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
   button.addEventListener('click', () => {
     window.api.copyText($(button.dataset.copy!).textContent!.replace(/\s/g, ''));
+    // The copy icon turns into a tick for a moment.
+    const icon = button.dataset.icon ?? button.innerHTML;
+    button.dataset.icon = icon;
+    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>';
     button.classList.add('copied');
     button.title = t('action.copied');
-    setTimeout(() => {
-      button.classList.remove('copied');
-      button.title = t('action.copy');
-    }, 1500);
+    clearTimeout(Number(button.dataset.timer));
+    button.dataset.timer = String(
+      setTimeout(() => {
+        button.classList.remove('copied');
+        button.innerHTML = icon;
+        button.title = t('action.copy');
+      }, 1500),
+    );
   });
 }
 
@@ -389,6 +447,7 @@ $('log-copy').addEventListener('click', async () => {
 function setViewerBusy(busy: boolean) {
   viewerBusy = busy;
   $<HTMLButtonElement>('connect-button').disabled = busy;
+  $('connect-button').classList.toggle('connecting', busy);
   $('cancel-button').hidden = !busy;
 }
 
@@ -469,13 +528,19 @@ async function connectTrusted(device: MyDevice) {
 const STAR_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
 
 // Favorites: one-click buttons in the connect card for computers that trust this device.
+let shownFavorites: Set<string> | undefined;
+
 function renderMyDevices() {
   const devices = loadMyDevices();
+  const before = shownFavorites;
+  shownFavorites = new Set(devices.map((d) => d.id));
   $('favorites').hidden = devices.length === 0;
   $('favorite-chips').replaceChildren(
     ...devices.map((device) => {
       const chip = document.createElement('span');
       chip.className = 'favorite-chip';
+      // Only a favorite added just now pops in (not the ones there since start-up).
+      if (before && !before.has(device.id)) chip.classList.add('is-new');
       const connect = document.createElement('button');
       connect.type = 'button';
       connect.className = 'favorite-connect';
@@ -965,6 +1030,8 @@ document.querySelectorAll('select').forEach(enhanceSelect);
 window.api.setKeepAwake(settings.keepAwake);
 applyTheme();
 applyLanguage();
+// Start-up: the sidebar and the home page assemble themselves.
+animateIn([...document.querySelectorAll('.sidebar > *'), ...pageParts($('page-home'))]);
 void window.api.onDeepLink(openLink).then((link) => link && openLink(link));
 void refreshPermissions();
 showNotesAfterUpdate();

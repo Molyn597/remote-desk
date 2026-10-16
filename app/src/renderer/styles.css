@@ -1824,3 +1824,203 @@ html:not(:fullscreen) .platform-linux .viewer-drag {
 body:not(.platform-win32) .win-only {
   display: none;
 }
+
+/* ---------- Motion ---------- */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.25, 1.35, 0.4, 1);
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Panels and cards land one after another (start-up and page switches). */
+.anim-in {
+  animation: rise-in 0.55s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+/* Smooth light/dark switch (only while switching, so normal use stays snappy). */
+:root.theme-anim *,
+:root.theme-anim *::before,
+:root.theme-anim *::after {
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease !important;
+}
+
+/* Buttons lift on hover and press on click. */
+.dark-button,
+.primary-button,
+.ghost-button,
+.small-button,
+.circle-btn,
+.hatch-button,
+.search-pill,
+.chip,
+.favorite-connect,
+.star-button,
+.banner-button,
+.select-button {
+  transition: transform 0.18s var(--ease-out), box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, opacity 0.18s ease;
+}
+
+:is(.dark-button, .primary-button, .ghost-button, .small-button, .circle-btn, .hatch-button, .banner-button):hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+:is(.dark-button, .primary-button, .ghost-button, .small-button, .circle-btn, .hatch-button, .banner-button, .favorite-connect, .star-button, .select-button):active:not(:disabled) {
+  transform: translateY(0) scale(0.96);
+}
+
+@keyframes nudge {
+  0%, 100% { transform: none; }
+  45% { transform: translate(3px, -3px); }
+}
+
+.dark-button:hover:not(:disabled) .arrow-dot svg {
+  animation: nudge 0.5s var(--ease-out);
+}
+
+/* New password: the button spins, the characters roll (see renderer). */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.hatch-button.spinning svg {
+  animation: spin 0.6s var(--ease-out);
+}
+
+/* Copy buttons turn into a tick. */
+@keyframes pop {
+  0% { transform: scale(0.5); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.circle-btn.copied svg {
+  animation: pop 0.35s var(--ease-spring);
+}
+
+/* Online dot breathes. */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgb(52 164 107 / 45%); }
+  70% { box-shadow: 0 0 0 9px rgb(52 164 107 / 0%); }
+  100% { box-shadow: 0 0 0 0 rgb(52 164 107 / 0%); }
+}
+
+.status-dot.online .dot {
+  animation: pulse-ring 2.2s ease-out infinite;
+}
+
+/* Favorites: a new one pops in and its star spins. */
+@keyframes chip-in {
+  0% { opacity: 0; transform: scale(0.6); }
+  70% { opacity: 1; transform: scale(1.06); }
+  100% { transform: none; }
+}
+
+.favorite-chip.is-new {
+  animation: chip-in 0.45s var(--ease-spring) both;
+}
+
+.favorite-chip.is-new .favorite-connect svg {
+  animation: spin 0.7s var(--ease-out);
+}
+
+/* Connecting: a light sweeps across the Connect button. */
+@keyframes sweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(220%); }
+}
+
+.dark-button.connecting {
+  position: relative;
+  overflow: hidden;
+  opacity: 1 !important;
+}
+
+.dark-button.connecting::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgb(255 164 27 / 35%), transparent);
+  animation: sweep 1.3s ease-in-out infinite;
+}
+
+.dark-button.connecting .arrow-dot {
+  animation: pulse-accent 1.3s ease-in-out infinite;
+}
+
+@keyframes pulse-accent {
+  50% { transform: scale(0.85); }
+}
+
+/* The remote screen opens out of the window. */
+@keyframes viewer-in {
+  from { opacity: 0; transform: scale(0.94); border-radius: 28px; }
+  to { opacity: 1; transform: none; border-radius: 0; }
+}
+
+.viewer:not([hidden]) {
+  animation: viewer-in 0.45s var(--ease-out);
+}
+
+/* Toolbar slides with a little spring; menus and messages pop open. */
+.toolbar {
+  transition: transform 0.38s var(--ease-spring), opacity 0.25s ease;
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.96); }
+  to { opacity: 1; transform: translateX(-50%); }
+}
+
+.menu:not([hidden]) {
+  animation: menu-in 0.18s var(--ease-out);
+  transform-origin: top center;
+}
+
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.select-menu:not([hidden]),
+.transfer:not([hidden]),
+.control-notice:not([hidden]),
+.trusted-note:not([hidden]),
+.banner:not([hidden]),
+.host-banner:not([hidden]) {
+  animation: drop-in 0.25s var(--ease-out);
+}
+
+.host-banner:not([hidden]) {
+  animation-name: drop-in-centered;
+}
+
+@keyframes drop-in-centered {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to { opacity: 1; transform: translateX(-50%); }
+}
+
+.form-status:not(:empty) {
+  animation: fade-up 0.25s var(--ease-out);
+}
+
+/* Respect "Reduce motion". */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
