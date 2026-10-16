@@ -27,7 +27,7 @@ import type {
   SessionPanelInfo,
   SessionState,
 } from '../preload/api';
-import { keepAliveOnClose, setRunAtLogin, setupBackground, startedHidden, type BackgroundLabels } from './background';
+import { applyTrayState, cleanTrayState, keepAliveOnClose, setRunAtLogin, startedHidden } from './background';
 import { listDisplays, viewRect } from './displays';
 import { clearLog, errorText, log, logFile, logStartup, readLog } from './log';
 import { setKeepAwake, setSessionAwake } from './power';
@@ -51,6 +51,7 @@ let panel: BrowserWindow | undefined;
 let sessionState: SessionState = 'idle';
 let captureTarget: string | undefined;
 let hiddenStart = false;
+let lastBackground: boolean | undefined;
 
 const PANEL_SIZE = { width: 740, height: 64 };
 const TITLE_BAR_HEIGHT = 36;
@@ -299,15 +300,17 @@ app.whenReady().then(async () => {
   ipcMain.on('keep-awake', (e, enabled: unknown) => {
     if (fromMainWindow(e)) setKeepAwake(enabled === true);
   });
-  ipcMain.on('background', (e, enabled: unknown, labels: BackgroundLabels) => {
+  ipcMain.on('tray-state', (e, raw: unknown) => {
     if (!fromMainWindow(e) || !win) return;
-    setRunAtLogin(enabled === true);
+    const state = cleanTrayState(raw);
+    if (state.background !== lastBackground) setRunAtLogin(state.background);
+    lastBackground = state.background;
     // Started hidden at login but background mode is off by now: nothing would show the window.
-    if (enabled !== true && !win.isVisible()) showWindow();
-    setupBackground(enabled === true, showWindow, {
-      open: String(labels?.open ?? ''),
-      quit: String(labels?.quit ?? ''),
-      tooltip: String(labels?.tooltip ?? ''),
+    if (!state.background && !win.isVisible()) showWindow();
+    applyTrayState(state, showWindow, (action) => {
+      // Connecting and copying need the window's state; the window shows itself when it connects.
+      if (action.type === 'connect') showWindow();
+      win?.webContents.send('tray-action', action);
     });
   });
   ipcMain.on('log', (e, level, source, message) => {

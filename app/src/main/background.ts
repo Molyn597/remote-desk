@@ -1,13 +1,13 @@
 import path from 'node:path';
-import { app, Menu, nativeImage, Tray, type BrowserWindow } from 'electron';
+import { app, Menu, nativeImage, Tray, type BrowserWindow, type MenuItemConstructorOptions } from 'electron';
+import type { TrayAction, TrayState } from '../preload/api';
 
 // Windows/Linux pass this flag from the login item so the app starts without a window.
 const HIDDEN_FLAG = '--hidden';
 const loginOptions = () => (process.platform === 'win32' ? { args: [HIDDEN_FLAG] } : {});
 
-export type BackgroundLabels = { open: string; quit: string; tooltip: string };
-
 let tray: Tray | undefined;
+let keepAlive = false;
 let quitting = false;
 
 app.on('before-quit', () => {
@@ -32,8 +32,48 @@ export function setRunAtLogin(enabled: boolean) {
   app.setLoginItemSettings({ openAtLogin: enabled, ...loginOptions() });
 }
 
-export function setupBackground(enabled: boolean, show: () => void, labels: BackgroundLabels) {
-  if (!enabled) {
+const text = (value: unknown, max = 120) => String(value ?? '').slice(0, max);
+
+// The renderer describes the menu; only plain labels and favorite IDs are accepted.
+export function cleanTrayState(raw: unknown): TrayState {
+  const s = (raw ?? {}) as Partial<TrayState>;
+  return {
+    background: s.background === true,
+    showIcon: s.showIcon === true,
+    tooltip: text(s.tooltip),
+    open: text(s.open),
+    quit: text(s.quit),
+    favoritesTitle: text(s.favoritesTitle),
+    copyId: text(s.copyId),
+    copyPassword: text(s.copyPassword),
+    status: s.status ? text(s.status) : undefined,
+    disconnect: s.disconnect ? text(s.disconnect) : undefined,
+    favorites: (Array.isArray(s.favorites) ? s.favorites : [])
+      .filter((f) => /^\d{9}$/.test(String(f?.id)))
+      .slice(0, 20)
+      .map((f) => ({ id: String(f.id), label: text(f.label, 60) })),
+  };
+}
+
+// Menu bar / tray icon and the Dock menu: favorites to connect to, this computer's ID and
+// password, the current session, open and quit.
+export function applyTrayState(state: TrayState, show: () => void, act: (action: TrayAction) => void) {
+  keepAlive = state.background;
+  const favorites: MenuItemConstructorOptions[] = state.favorites.length
+    ? [
+        { label: state.favoritesTitle, enabled: false },
+        ...state.favorites.map((f) => ({ label: f.label, click: () => act({ type: 'connect', id: f.id }) })),
+        { type: 'separator' as const },
+      ]
+    : [];
+  const share: MenuItemConstructorOptions[] = [
+    { label: state.copyId, click: () => act({ type: 'copy-id' }) },
+    { label: state.copyPassword, click: () => act({ type: 'copy-password' }) },
+  ];
+
+  if (process.platform === 'darwin') app.dock?.setMenu(Menu.buildFromTemplate([...favorites, ...share]));
+
+  if (!state.showIcon && !state.background) {
     tray?.destroy();
     tray = undefined;
     return;
@@ -45,14 +85,22 @@ export function setupBackground(enabled: boolean, show: () => void, labels: Back
         : nativeImage.createFromPath(path.join(__dirname, 'icon.png')).resize({ width: 16, height: 16 });
     if (process.platform === 'darwin') icon.setTemplateImage(true);
     tray = new Tray(icon);
-    tray.on('click', show);
+    tray.on('click', () => {
+      // On macOS a click opens the menu; on Windows it brings up the window.
+      if (process.platform !== 'darwin') show();
+    });
   }
-  tray.setToolTip(labels.tooltip);
+  tray.setToolTip(state.tooltip);
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: labels.open, click: show },
+      ...(state.status ? [{ label: state.status, enabled: false }] : []),
+      ...(state.disconnect ? [{ label: state.disconnect, click: () => act({ type: 'disconnect' }) }] : []),
+      ...(state.status || state.disconnect ? [{ type: 'separator' as const }] : []),
+      ...favorites,
+      ...share,
       { type: 'separator' },
-      { label: labels.quit, click: () => app.quit() },
+      { label: state.open, click: show },
+      { label: state.quit, click: () => app.quit() },
     ]),
   );
 }
@@ -60,7 +108,7 @@ export function setupBackground(enabled: boolean, show: () => void, labels: Back
 // While running in the background, closing the window only hides it.
 export function keepAliveOnClose(win: BrowserWindow) {
   win.on('close', (e) => {
-    if (tray && !quitting) {
+    if (keepAlive && !quitting) {
       e.preventDefault();
       win.hide();
     }

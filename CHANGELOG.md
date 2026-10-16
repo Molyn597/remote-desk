@@ -3,6 +3,13 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.14] - 2026-10-17
+
+### Added
+
+- Menu bar / system tray menu: connect to a favorite with one click, copy your ID or password, see the current session and disconnect. On a Mac the favorites are also in the Dock menu.
+- Settings → Show the icon in the menu bar / system tray, also when the app isn't running in the background.
+
 ## [0.1.13] - 2026-10-16
 
 ### Added

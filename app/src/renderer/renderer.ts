@@ -168,6 +168,8 @@ const host = new Host(config.platform, {
     if (path) notice.onclick = () => window.api.revealFile(path);
   },
   onSessionChange: (session, error) => {
+    hostSession = session;
+    sendBackground();
     $('host-banner').hidden = !session;
     showSessionPanel(session);
     if (error === 'capture') {
@@ -242,6 +244,7 @@ const viewer = new Viewer(config.platform, {
     applyTheme();
     window.api.setSessionState('viewer');
     viewerSession = session;
+    sendBackground();
     const partnerId = viewerPartnerId;
     detachToolbar = attachToolbar(session, {
       partnerId,
@@ -269,6 +272,7 @@ const viewer = new Viewer(config.platform, {
     detachToolbar?.();
     detachToolbar = undefined;
     viewerSession = undefined;
+    sendBackground();
     video.srcObject = null;
     $('viewer').hidden = true;
     applyTheme();
@@ -478,6 +482,7 @@ function renderMyDevices() {
     }),
   );
   syncTrustedNote();
+  sendBackground();
 }
 $('sidebar-connect').addEventListener('click', () => {
   showPage('home');
@@ -581,13 +586,43 @@ $('trusted-reset').addEventListener('click', () => {
   renderTrusted();
 });
 
+// Menu bar/tray icon and Dock menu: favorites, this computer's ID and password, the session.
+let hostSession: HostSession | null = null;
+
 function sendBackground() {
-  window.api.setBackground(settings.runInBackground, {
+  const viewing = viewerSession ? loadMyDevices().find((d) => d.id === viewerPartnerId)?.name || formatId(viewerPartnerId) : '';
+  const status = hostSession
+    ? t('tray.beingControlled', { who: describeVisitor(hostSession) })
+    : viewing
+      ? t('tray.connectedTo', { name: viewing })
+      : undefined;
+  window.api.setTrayState({
+    background: settings.runInBackground,
+    showIcon: settings.showTray,
+    tooltip: t('tray.tooltip', { id: formatId(hostId) }),
     open: t('tray.open'),
     quit: t('tray.quit'),
-    tooltip: t('tray.tooltip', { id: formatId(hostId) }),
+    favoritesTitle: t('favorites.title'),
+    copyId: t('tray.copyId', { id: formatId(hostId) }),
+    copyPassword: t('tray.copyPassword'),
+    status,
+    disconnect: status ? t('session.disconnect') : undefined,
+    favorites: loadMyDevices().map((d) => ({ id: d.id, label: d.name || formatId(d.id) })),
   });
 }
+
+window.api.onTrayAction((action) => {
+  if (action.type === 'copy-id') window.api.copyText(hostId);
+  if (action.type === 'copy-password') window.api.copyText(password);
+  if (action.type === 'disconnect') {
+    if (hostSession) host.disconnect();
+    else viewer.disconnect();
+  }
+  if (action.type === 'connect') {
+    const device = loadMyDevices().find((d) => d.id === action.id);
+    if (device && !viewerSession) void connectTrusted(device);
+  }
+});
 
 function renderTrusted() {
   const devices = loadTrusted();
@@ -631,6 +666,7 @@ function fillSettingsForm() {
   $<HTMLInputElement>('setting-name').value = settings.displayName;
   $<HTMLInputElement>('setting-background').checked = settings.runInBackground;
   $<HTMLInputElement>('setting-keep-awake').checked = settings.keepAwake;
+  $<HTMLInputElement>('setting-show-tray').checked = settings.showTray;
   $<HTMLSelectElement>('setting-language').value = settings.language;
   refreshSelects();
   for (const radio of networkRadios()) radio.checked = radio.value === (settings.serverUrl ? 'own' : 'public');
@@ -659,6 +695,7 @@ $('settings-form').addEventListener('submit', (e) => {
     displayName: $<HTMLInputElement>('setting-name').value.trim(),
     runInBackground: $<HTMLInputElement>('setting-background').checked,
     keepAwake: $<HTMLInputElement>('setting-keep-awake').checked,
+    showTray: $<HTMLInputElement>('setting-show-tray').checked,
     language: $<HTMLSelectElement>('setting-language').value as Settings['language'],
     serverUrl,
     turnUrl: $<HTMLInputElement>('setting-turn-url').value.trim(),

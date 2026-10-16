@@ -22,7 +22,8 @@ a bez vlastního serveru – stačí ID a heslo, u oblíbených počítačů jed
 ## Co aplikace umí
 
 - Ovládat počítač s Windows nebo Mac z druhého systému, oběma směry.
-- Připojit se pomocí ID a hesla, nebo jedním kliknutím k počítačům v **Oblíbených**.
+- Připojit se pomocí ID a hesla, nebo jedním kliknutím k počítačům v **Oblíbených**, i z ikony
+  v liště nahoře / v oznamovací oblasti a z Docku.
 - Dostat se ke svému počítači odkudkoli (škola, práce, mobilní data), když běží na pozadí a neusne.
 - Ostrý obraz (1920 px až při 60 fps) včetně **zvuku** vzdáleného počítače.
 - **Více monitorů**: jeden po druhém, nebo všechny vedle sebe.
@@ -198,6 +199,14 @@ hned seberete, nebo použijte **Odebrat vše a vyměnit klíč**.
 ### Běh na pozadí a nedovolit uspání
 
 Viz [Přístup k počítači, když nejste doma](#přístup-k-počítači-když-nejste-doma).
+
+### Ikona v liště nahoře / v oznamovací oblasti
+
+Zobrazí se při běhu na pozadí, nebo vždy, když zapnete **Zobrazit ikonu v liště nahoře / v oznamovací
+oblasti**. Z její nabídky se jedním kliknutím připojíte k oblíbenému počítači, zkopírujete své ID nebo
+heslo pro toho, kdo se má připojit k vám, uvidíte probíhající relaci s tlačítkem **Odpojit** a aplikaci
+otevřete nebo ukončíte. Na Macu jsou oblíbená a kopírování i v nabídce v Docku (pravé tlačítko na ikoně
+Remote Desk).
 
 ### Síť
 

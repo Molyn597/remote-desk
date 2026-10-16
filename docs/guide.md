@@ -22,7 +22,8 @@ no server of your own — just an ID and a password, or one click for your favor
 ## What you can do
 
 - Control a Windows PC or a Mac from the other system, in both directions.
-- Connect with an ID and password, or with one click to computers in your **Favorites**.
+- Connect with an ID and password, or with one click to computers in your **Favorites**, also from
+  the menu bar / tray icon and the Dock.
 - Reach your own computer from anywhere (school, work, mobile data) while it runs in the background
   and doesn't go to sleep.
 - A sharp picture (1920 px at up to 60 fps), with the remote **sound**.
@@ -202,6 +203,13 @@ take its access away at once, or use **Remove all and replace the key**.
 ### Start at login and run in the background, keep awake
 
 See [Reach your computer while you are away](#reach-your-computer-while-you-are-away).
+
+### Menu bar / system tray icon
+
+Shown while running in the background, or always with **Show the icon in the menu bar / system tray**.
+Its menu connects to a favorite with one click, copies your ID or password for someone who should
+connect to you, shows the current session with **Disconnect**, and opens or quits the app. On a Mac
+the favorites and the copy items are also in the Dock menu (right-click the Remote Desk icon).
 
 ### Network
 

@@ -12,6 +12,7 @@ export interface Settings {
   turnCredential: string;
   runInBackground: boolean; // start at login and stay in the tray/menu bar
   keepAwake: boolean; // don't let the computer sleep (the screen may turn off)
+  showTray: boolean; // show the menu bar/tray icon even when not running in the background
   remoteAudio: boolean; // play the remote computer's sound while viewing
 }
 
@@ -36,6 +37,7 @@ const DEFAULTS: Settings = {
   turnCredential: '',
   runInBackground: false,
   keepAwake: false,
+  showTray: false,
   remoteAudio: true,
 };
 

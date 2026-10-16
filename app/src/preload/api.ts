@@ -6,6 +6,22 @@ export type PermissionKind = 'screen' | 'accessibility';
 export type ConfirmChoice = 'control' | 'view' | 'deny';
 export type SessionAction = 'pause' | 'resume' | 'disconnect';
 
+export interface TrayState {
+  background: boolean;
+  showIcon: boolean;
+  tooltip: string;
+  open: string;
+  quit: string;
+  favoritesTitle: string;
+  copyId: string;
+  copyPassword: string;
+  status?: string;
+  disconnect?: string;
+  favorites: { id: string; label: string }[];
+}
+
+export type TrayAction = { type: 'connect'; id: string } | { type: 'copy-id' } | { type: 'copy-password' } | { type: 'disconnect' };
+
 export interface ConfirmText {
   title: string;
   detail: string;
@@ -76,7 +92,9 @@ export interface Api {
   clearLog(): void;
   revealLog(): void;
   setKeepAwake(enabled: boolean): void;
-  setBackground(enabled: boolean, labels: { open: string; quit: string; tooltip: string }): void;
+  // Menu bar/tray icon and Dock menu, and whether the app keeps running in the background.
+  setTrayState(state: TrayState): void;
+  onTrayAction(handler: (action: TrayAction) => void): void;
   revealFile(path: string): void;
   // What's new and feedback.
   getChangelog(): Promise<string>;
