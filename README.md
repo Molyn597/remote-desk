@@ -16,6 +16,17 @@ someone control your computer — or control theirs. No account, no server to ru
   <img src="docs/screenshots/app-whats-new.png" width="395" alt="What's new page with updates, feedback and changelog" />
 </p>
 
+## Features
+
+- Control Windows and macOS computers, in both directions.
+- ID and password, or **favorites**: one click, no password, approved once on the other computer.
+- Reach your own computer while you are away: runs in the background and keeps the computer awake.
+- Sharp picture (1920 px at up to 60 fps) with the remote **sound**; several monitors.
+- Shared clipboard and file transfer in both directions.
+- Scam safeguards: an always-on-top session panel, local mouse priority, approvals that the remote
+  side can't click for you.
+- Diagnostics log with IDs and keys redacted, automatic updates, Czech and English.
+
 ## Install
 
 Download the installer for your system from [Releases](../../releases):
@@ -31,7 +42,9 @@ Download the installer for your system from [Releases](../../releases):
 1. On the computer that should be controlled, open Remote Desk and send its **ID** and
    **password** to your partner.
 2. Your partner enters them under **Control remote computer** and clicks **Connect**.
-3. You click **Allow**. A red bar shows the session is active; **Disconnect** ends it any time.
+3. You click **Allow**. A black panel on top of all windows shows the session; **Disconnect** ends it any time.
+4. For your own computers, click the **star** in the session toolbar. Once the other computer approves
+   it, you connect with one click and no password.
 
 On macOS the controlled Mac needs two permissions, granted once (the app guides you under
 **Permissions**): **Screen Recording** and **Accessibility**. Windows needs no permissions.

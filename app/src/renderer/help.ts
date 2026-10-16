@@ -26,7 +26,7 @@ const cs: Section[] = [
     title: 'Nechat se ovládat',
     steps: [
       'Pošlete partnerovi své ID a heslo z karty „Povolit vzdálené ovládání“. Tlačítkem pro kopírování je dostanete do schránky.',
-      'Když se partner připojí, uvidíte jeho jméno a ID a vyberete: Povolit ovládání, Jen sledování, nebo Odmítnout. Bez vašeho souhlasu se nikdo nepřipojí.',
+      'Když se partner připojí, uvidíte jeho jméno a ID a vyberete: Povolit ovládání, Jen sledovat, nebo Odmítnout. Bez vašeho souhlasu se nikdo nepřipojí (kromě zařízení, která jste si sami přidali do oblíbených). Dotaz bez odpovědi se po minutě odmítne.',
       'Během relace je nahoře černý panel, vždy nad ostatními okny. Můžete v něm pozastavit ovládání nebo relaci odpojit. Když pohnete myší, máte přednost před partnerem.',
       'Po relaci si můžete vygenerovat nové heslo (šrafované tlačítko vedle hesla).',
     ],
@@ -46,7 +46,7 @@ const cs: Section[] = [
       'Během připojení klikněte v liště na hvězdičku (nebo na hvězdičku u počítače v Nedávných a připojte se heslem).',
       'Na druhém počítači musí někdo žádost schválit. Do té doby je vzdálené ovládání pozastavené.',
       'Počítač se vám pak objeví v Oblíbených pod polem ID. Příště se připojíte jedním kliknutím, bez hesla a bez dotazu.',
-      'Aby to šlo i v době, kdy u počítače nikdo není, zapněte na něm v Nastavení „Spouštět po přihlášení a běžet na pozadí“.',
+      'Aby to šlo i v době, kdy u počítače nikdo není, zapněte na něm v Nastavení „Spouštět po přihlášení a běžet na pozadí“ a „Nedovolit uspání počítače“. Vypnutý ani uspaný počítač probudit nejde.',
       'Funguje to jedním směrem; pro opačný směr udělejte totéž z druhého počítače. Přístup zrušíte v Nastavení → Kdo má tento počítač v oblíbených.',
     ],
   },
@@ -75,7 +75,8 @@ const cs: Section[] = [
     steps: [
       'Nikdy nedávejte ID a heslo nikomu, kdo vám sám zavolal. Banky, Microsoft ani policie vzdálený přístup nechtějí.',
       'Heslo se nikam neposílá. Slouží jako klíč, kterým se spojení šifruje.',
-      'Obraz a ovládání jdou přímo mezi počítači a jsou šifrované.',
+      'Obraz, zvuk a ovládání jdou přímo mezi počítači a jsou šifrované.',
+      'Při schvalování oblíbených je vzdálené ovládání pozastavené, takže za vás druhá strana Povolit nekline.',
     ],
   },
   {
@@ -95,7 +96,7 @@ const en: Section[] = [
     title: 'Let someone control this computer',
     steps: [
       'Send your partner the ID and password from the “Allow remote control” card. The copy buttons put them on the clipboard.',
-      'When your partner connects, you see their name and ID and choose: Allow control, View only, or Deny. Nobody gets in without your approval.',
+      'When your partner connects, you see their name and ID and choose: Allow control, View only, or Deny. Nobody gets in without your approval (except devices you added to favorites yourself). An unanswered prompt is denied after a minute.',
       'During the session a black panel stays on top of all windows. Use it to pause control or disconnect. When you move your mouse, you take priority over your partner.',
       'After the session you can generate a new password (hatched button next to it).',
     ],
@@ -115,7 +116,7 @@ const en: Section[] = [
       'While connected, click the star in the toolbar (or the star next to a computer in Recent, then connect with the password).',
       'Someone at the other computer has to approve it. Remote control is paused until they do.',
       'The computer then appears in Favorites below the ID field. Next time you connect with one click, no password and no prompt.',
-      'For access while nobody is at that computer, turn on “Start at login and run in the background” in its Settings.',
+      'For access while nobody is at that computer, turn on “Start at login and run in the background” and “Keep this computer awake” in its Settings. A computer that is off or asleep can’t be woken up.',
       'It works one way; for the other direction do the same from the other computer. Revoke access in Settings → Who has this computer as a favorite.',
     ],
   },
@@ -144,7 +145,8 @@ const en: Section[] = [
     steps: [
       'Never give your ID and password to someone who called you. Banks, Microsoft and the police never ask for remote access.',
       'The password is never sent anywhere. It is the key that encrypts the connection.',
-      'Video and input go directly between the computers and are encrypted.',
+      'Video, sound and input go directly between the computers and are encrypted.',
+      'While a favorite is being approved, remote control is paused, so the other side can’t click Allow for you.',
     ],
   },
   {
