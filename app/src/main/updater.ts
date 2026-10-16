@@ -1,6 +1,7 @@
 import { app, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import type { UpdateState } from '../preload/api';
+import { allowQuit } from './background';
 import { log } from './log';
 import { repoUrl } from './repo';
 
@@ -38,7 +39,10 @@ export async function checkForUpdates() {
 }
 
 export function installUpdate() {
-  if (canInstall && state.status === 'ready') autoUpdater.quitAndInstall();
+  if (!canInstall || state.status !== 'ready') return;
+  log('info', 'update', `installing ${state.version ?? ''} and restarting`);
+  allowQuit();
+  autoUpdater.quitAndInstall();
 }
 
 export function openDownloadPage() {

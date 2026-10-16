@@ -14,6 +14,12 @@ app.on('before-quit', () => {
   quitting = true;
 });
 
+// quitAndInstall closes the windows before 'before-quit', so it must say up front that
+// this is a real quit, not the window going to the tray.
+export function allowQuit() {
+  quitting = true;
+}
+
 export const runsAtLogin = () => app.getLoginItemSettings(loginOptions()).openAtLogin;
 
 export const startedHidden = () =>

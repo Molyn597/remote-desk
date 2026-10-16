@@ -3,6 +3,12 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.10] - 2026-10-16
+
+### Fixed
+
+- macOS: with "run in the background" on, Restart and update only hid the window and the update never installed. To get this version, quit Remote Desk from the menu bar icon once; the update installs when the app quits.
+
 ## [0.1.9] - 2026-10-16
 
 ### Added
