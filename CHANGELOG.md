@@ -3,6 +3,14 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.2] - 2026-10-17
+
+Test version of 0.2.0. Installed by hand; regular versions don't update to it.
+
+### Added
+
+- Beta versions switch on the What's new page: get new features early, or turn it off to go back to the newest stable version (even if its number is lower).
+
 ## [0.2.0-beta.1] - 2026-10-17
 
 Test version of 0.2.0, part 1. Installed by hand; regular versions don't update to it.

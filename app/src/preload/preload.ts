@@ -47,6 +47,8 @@ const api: Api = {
   openFeedback: (kind) => ipcRenderer.send('open-feedback', kind),
   getUpdateState: () => ipcRenderer.invoke('update-state'),
   onUpdateState: (handler) => ipcRenderer.on('update-state', (_e, state) => handler(state)),
+  getBetaChannel: () => ipcRenderer.invoke('update-beta'),
+  setBetaChannel: (enabled) => ipcRenderer.send('update-set-beta', enabled),
   checkForUpdates: () => ipcRenderer.send('update-check'),
   installUpdate: () => ipcRenderer.send('update-install'),
   openDownloadPage: () => ipcRenderer.send('update-download-page'),

@@ -114,6 +114,9 @@ export interface Api {
   // Updates.
   getUpdateState(): Promise<UpdateState>;
   onUpdateState(handler: (state: UpdateState) => void): void;
+  // Beta channel: also offer pre-releases; turning it off returns to the newest stable release.
+  getBetaChannel(): Promise<boolean>;
+  setBetaChannel(enabled: boolean): void;
   checkForUpdates(): void;
   installUpdate(): void;
   openDownloadPage(): void;

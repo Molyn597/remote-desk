@@ -39,7 +39,7 @@ import { POWER_ACTIONS, type PowerAction } from '../../../shared/protocol';
 import { watchClipboard, writeClipboard } from './clipboard';
 import { clearOffers, offerFiles, readOfferedFile, saveReceivedFile, wasSaved } from './files';
 import { appId, rawFileUrl, repoUrl } from './repo';
-import { checkForUpdates, getUpdateState, installUpdate, openDownloadPage, setupUpdater } from './updater';
+import { checkForUpdates, getBetaChannel, getUpdateState, installUpdate, openDownloadPage, setBetaChannel, setupUpdater } from './updater';
 
 const isMac = process.platform === 'darwin';
 const PRIVACY_PANES: Record<PermissionKind, string> = {
@@ -497,6 +497,10 @@ app.whenReady().then(async () => {
     if (fromMainWindow(e)) openFeedback(kind);
   });
   ipcMain.handle('update-state', () => getUpdateState());
+  ipcMain.handle('update-beta', () => getBetaChannel());
+  ipcMain.on('update-set-beta', (e, enabled: unknown) => {
+    if (fromMainWindow(e)) setBetaChannel(enabled === true);
+  });
   ipcMain.on('update-check', (e) => {
     if (fromMainWindow(e)) void checkForUpdates();
   });

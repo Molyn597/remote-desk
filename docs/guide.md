@@ -68,6 +68,10 @@ the **Download update** / **Restart and update** button on the **What's new** pa
 Restarting installs it in place on both Windows and macOS. **Check now** looks for an update right
 away, and **What's new** shows the changes in each version.
 
+**Beta versions** (same page): turn it on to get new features early, before they are finished;
+they may contain bugs. Turning it off takes you back to the newest stable version, even if its
+number is lower.
+
 ## Let someone control this computer
 
 1. Open Remote Desk. The **Allow remote control** card shows your **ID** (9 digits) and **password**.

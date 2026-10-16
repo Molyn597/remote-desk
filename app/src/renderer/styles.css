@@ -2094,3 +2094,21 @@ body:not(.platform-win32) .win-only {
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }
+
+/* Beta channel switch in the updates card */
+.beta-option {
+  margin-top: 16px;
+}
+
+.beta-option input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.beta-option .hint {
+  display: block;
+  margin: 4px 0 0;
+}

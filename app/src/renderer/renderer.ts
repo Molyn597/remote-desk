@@ -1036,6 +1036,17 @@ window.api.onUpdateState((state) => {
   renderUpdate();
 });
 $('update-check').addEventListener('click', () => window.api.checkForUpdates());
+
+// Beta channel: try new versions early; turning it off goes back to the newest stable release.
+const betaBox = $<HTMLInputElement>('setting-beta');
+void window.api.getBetaChannel().then((on) => {
+  betaBox.checked = on;
+  $('beta-option').hidden = updateState.status === 'unsupported';
+});
+betaBox.addEventListener('change', () => {
+  window.api.setBetaChannel(betaBox.checked);
+  logInfo('settings', `beta updates ${betaBox.checked ? 'on' : 'off'}`);
+});
 $('update-get').addEventListener('click', runUpdateAction);
 $('update-banner-action').addEventListener('click', () => void openWhatsNew('update'));
 $('update-primary').addEventListener('click', () => void openWhatsNew('update'));

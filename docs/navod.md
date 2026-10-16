@@ -67,6 +67,10 @@ pruh a tlačítko **Stáhnout aktualizaci** / **Restartovat a aktualizovat** na 
 zoranžoví. Po restartu se aktualizace nainstaluje na Windows i na macOS. **Zkontrolovat** hledá
 aktualizaci hned, **Co je nového** ukazuje změny v jednotlivých verzích.
 
+**Testovací (beta) verze** (na stejné stránce): zapněte, pokud chcete nové funkce dřív, než jsou
+hotové; mohou obsahovat chyby. Vypnutím se vrátíte na nejnovější stabilní verzi, i když má nižší
+číslo.
+
 ## Nechat se ovládat
 
 1. Otevřete Remote Desk. Na kartě **Povolit vzdálené ovládání** je vaše **ID** (9 číslic) a **heslo**.
