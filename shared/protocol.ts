@@ -24,7 +24,8 @@ export type Answer = {
 export type SessionStatus = { control: boolean };
 
 // Viewer -> host session settings: stream quality and which monitor to show.
-export type Quality = 'auto' | 'speed' | 'quality';
+// 'saver' keeps 1920 px but limits frame rate and data, e.g. on mobile data.
+export type Quality = 'auto' | 'speed' | 'quality' | 'saver';
 export type Control = { quality?: Quality; view?: string };
 
 // Host monitors, positioned as arranged in the host's display settings.

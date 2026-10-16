@@ -110,7 +110,7 @@ Lišta je nahoře uprostřed okna. Po chvíli se schová a znovu se ukáže, kdy
 | Rámeček | Přepíná mezi **přizpůsobit oknu** a **skutečnou velikostí**. Ve skutečné velikosti se obraz posouvá, když najedete k okraji. |
 | Šipky ven | **Celá obrazovka**. |
 | Dva monitory | **Monitor**, jen když má vzdálený počítač víc monitorů. Zobrazí jeden monitor (nejostřejší obraz), nebo **všechny monitory vedle sebe** tak, jak jsou na tom počítači uspořádané. Vedle sebe můžete okno přetáhnout z jednoho monitoru na druhý; štítek nad monitorem přepne zpět jen na něj. Volba se pro daný počítač pamatuje. |
-| Tachometr | **Kvalita**: automaticky, upřednostnit rychlost (pro slabou síť), nebo upřednostnit kvalitu. |
+| Tachometr | **Kvalita**. **Automaticky** drží ostrých 1920 px a když síť nebo počítač nestíhá, ubere snímky (60 → 30 fps). **Upřednostnit plynulost** drží 60 fps při 1280 px pro slabou síť. **Maximální ostrost** posílá plné rozlišení při 30 fps. **Šetřit data** drží 1920 px při nejvýš 30 fps a asi 3 Mbit/s, pro mobilní data. Volba se pamatuje. Vedle lišta ukazuje odezvu, rozlišení, fps a datový tok, které skutečně dorazí. |
 | Oko | **Jen sledovat**: obraz vidíte, ale myš a klávesnice se neposílají. |
 | Klávesnice | **Odeslat zkratku**, kterou by jinak zachytil váš vlastní systém (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
 | Schránka | **Sdílená schránka** zapnout/vypnout. Když je zapnutá, text zkopírovaný na jednom počítači vložíte na druhém (jen při povoleném ovládání). |
@@ -174,7 +174,8 @@ schránky se do něj nikdy nezapisují a ID partnerů jsou zkrácená.
 - Na mobilních datech nebo ve firemní síti nastavte TURN relé.
 
 **Obraz je pomalý nebo trhaný**
-- V liště zvolte **Kvalita → Upřednostnit rychlost**.
+- V liště zvolte **Kvalita → Upřednostnit plynulost**, na mobilních datech **Šetřit data**.
+- Automaticky při 1920 px a 60 fps potřebuje na ovládaném počítači asi 8–16 Mbit/s uploadu.
 - Pokud stav ukazuje „přes relé“, spojení jde přes TURN a bývá pomalejší.
 
 **Na Macu vidím černou obrazovku nebo nejde ovládat**

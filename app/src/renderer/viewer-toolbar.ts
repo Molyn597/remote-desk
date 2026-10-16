@@ -8,6 +8,8 @@ const HIDE_DELAY_MS = 2500;
 const PAN_EDGE_PX = 48;
 const PAN_SPEED = 18;
 const STATS_INTERVAL_MS = 1000;
+const QUALITY_KEY = 'remote-desk-quality';
+const QUALITIES: Quality[] = ['auto', 'speed', 'quality', 'saver'];
 
 type Shortcut = { label: MessageKey; keys: string; combo: Extract<InputEvent, { t: 'combo' }> };
 
@@ -94,7 +96,15 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
 
   // Fit to window / original size with edge panning.
   let original = false;
+  // The last chosen quality is kept for the next sessions.
   let quality: Quality = 'auto';
+  try {
+    const saved = localStorage.getItem(QUALITY_KEY) as Quality | null;
+    if (saved && QUALITIES.includes(saved)) quality = saved;
+  } catch {
+    // storage unavailable
+  }
+  if (quality !== 'auto') session.sendControl({ quality });
   const applyScale = () => {
     stage.classList.toggle('original', original);
     $('tool-scale').classList.toggle('active', original);
@@ -172,6 +182,11 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     listen(button, 'click', () => {
       quality = button.dataset.quality as Quality;
       session.sendControl({ quality });
+      try {
+        localStorage.setItem(QUALITY_KEY, quality);
+      } catch {
+        // storage unavailable
+      }
       renderQuality();
       applyScale();
       closeMenus();
@@ -505,6 +520,7 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     const stats = await pc.getStats();
     let rtt: number | undefined;
     let fps: number | undefined;
+    let size: string | undefined;
     let relayed = false;
     let bitrate: number | undefined;
     let pairId: string | undefined;
@@ -514,6 +530,7 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     stats.forEach((s) => {
       if (s.type === 'inbound-rtp' && s.kind === 'video') {
         fps = s.framesPerSecond;
+        if (s.frameWidth && s.frameHeight) size = `${s.frameWidth}×${s.frameHeight}`;
         if (lastTime) bitrate = ((s.bytesReceived - lastBytes) * 8) / ((s.timestamp - lastTime) / 1000);
         lastBytes = s.bytesReceived;
         lastTime = s.timestamp;
@@ -525,8 +542,10 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
         relayed = local?.candidateType === 'relay' || remote?.candidateType === 'relay';
       }
     });
+    // What actually arrives: resolution and frame rate after the sender adapted to the network.
     const parts = [
       rtt !== undefined ? `${rtt} ms` : undefined,
+      size,
       fps !== undefined ? `${Math.round(fps)} fps` : undefined,
       bitrate !== undefined ? `${(bitrate / 1_000_000).toFixed(1)} Mb/s` : undefined,
       t(relayed ? 'conn.relay' : 'conn.direct'),

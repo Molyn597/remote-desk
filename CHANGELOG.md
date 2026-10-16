@@ -3,6 +3,18 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.12] - 2026-10-16
+
+### Changed
+
+- Automatic quality keeps a sharp 1920 px and drops frames (60 → 30 fps) when the network or computer can't keep up, instead of shrinking the picture. It may now use up to 16 Mbit/s.
+- The quality menu names what each option does, and your choice is remembered for the next session.
+
+### Added
+
+- Save data quality: 1920 px at up to 30 fps and about 3 Mbit/s, for mobile data.
+- The toolbar shows the resolution that actually arrives, next to latency, fps and data rate.
+
 ## [0.1.11] - 2026-10-16
 
 ### Fixed

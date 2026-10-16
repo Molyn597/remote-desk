@@ -112,7 +112,7 @@ move the mouse to the top edge.
 | Frame | Switches between **fit to window** and **original size**. At original size the picture pans when you reach an edge. |
 | Arrows | **Full screen**. |
 | Two screens | **Monitor**, shown only when the remote computer has more than one. Show one monitor at a time (sharpest picture) or **all monitors side by side**, arranged as they are on that computer. Side by side, you can drag a window from one monitor to the other; the label above each monitor switches back to just that one. Your choice is remembered for that computer. |
-| Gauge | **Quality**: automatic, optimize speed (slow networks) or optimize quality. |
+| Gauge | **Quality**. **Automatic** keeps a sharp 1920 px and drops frames (60 → 30 fps) when the network or computer can't keep up. **Optimize smoothness** keeps 60 fps at 1280 px for slow networks. **Maximum sharpness** sends the full resolution at 30 fps. **Save data** keeps 1920 px at up to 30 fps and about 3 Mbit/s, for mobile data. The choice is remembered. Next to it the toolbar shows the latency, resolution, fps and data rate that actually arrive. |
 | Eye | **View only**: you see the screen but mouse and keyboard are not sent. |
 | Keyboard | **Send a shortcut** your own system would otherwise catch (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
 | Clipboard | **Shared clipboard** on or off. While on, text you copy on one computer can be pasted on the other (only when control is allowed). |
@@ -175,7 +175,8 @@ and clipboard contents are never written there, and partner IDs are shortened.
 - On mobile data or corporate networks, set up a TURN relay.
 
 **The picture is slow or choppy**
-- Choose **Quality → Optimize speed** in the toolbar.
+- Choose **Quality → Optimize smoothness** in the toolbar, or **Save data** on mobile data.
+- Automatic at 1920 px and 60 fps needs about 8–16 Mbit/s upload on the controlled computer.
 - If the status shows "relayed", the connection goes through TURN and is usually slower.
 
 **On a Mac the screen is black or control doesn't work**

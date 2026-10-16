@@ -30,14 +30,17 @@ import { logError, logInfo, logWarn, watchConnection } from './log';
 import { join } from './network';
 import { addTrusted, loadTrusted, loadTrustSecret, touchTrusted, type Settings } from './settings';
 
-// Encoding a full Retina/4K screen is slow; "auto" and "speed" downscale it for low latency.
+// Encoding a full Retina/4K screen is slow, so most presets cap the width. "auto" keeps
+// 1920 px and gives up frames first when the network or encoder can't keep up, because
+// text below 1920 px is hard to read; "speed" keeps 60 fps and gives up resolution.
 const QUALITY_PRESETS: Record<
   Quality,
   { bitrate: number; maxWidth: number; fps: number; preference: RTCDegradationPreference; hint: string }
 > = {
-  auto: { bitrate: 10_000_000, maxWidth: 1920, fps: 60, preference: 'maintain-framerate', hint: 'motion' },
+  auto: { bitrate: 16_000_000, maxWidth: 1920, fps: 60, preference: 'maintain-resolution', hint: 'detail' },
   speed: { bitrate: 4_000_000, maxWidth: 1280, fps: 60, preference: 'maintain-framerate', hint: 'motion' },
-  quality: { bitrate: 20_000_000, maxWidth: Infinity, fps: 30, preference: 'maintain-resolution', hint: 'detail' },
+  quality: { bitrate: 25_000_000, maxWidth: Infinity, fps: 30, preference: 'maintain-resolution', hint: 'detail' },
+  saver: { bitrate: 3_000_000, maxWidth: 1920, fps: 30, preference: 'maintain-resolution', hint: 'detail' },
 };
 
 // After a refusal the same peer can't pop up another dialog for a while.
