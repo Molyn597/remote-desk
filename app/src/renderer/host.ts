@@ -24,7 +24,7 @@ import {
   trustedRoom,
 } from '../../../shared/protocol';
 import type { ConfirmChoice } from '../preload/api';
-import { captureView, type Capture } from './capture';
+import { captureAudio, captureView, type Capture } from './capture';
 import { challengeText, fingerprint, newNonce, verify } from './identity';
 import { logError, logInfo, logWarn, watchConnection } from './log';
 import { join } from './network';
@@ -115,6 +115,7 @@ export class Host {
   private pending?: Peer;
   private stream?: MediaStream;
   private capture?: Capture;
+  private audio?: MediaStreamTrack;
   private displays: DisplayInfo[] = [];
   private view = '';
   private quality: Quality = 'auto';
@@ -457,7 +458,16 @@ export class Host {
       return;
     }
     this.capture = capture;
-    this.stream = new MediaStream([capture.track]);
+    this.audio = await captureAudio();
+    logInfo('host', this.audio ? 'sharing system sound' : 'system sound not available');
+    if (this.session?.peerId !== peerId || this.session.link !== link) {
+      capture.stop();
+      this.capture = undefined;
+      this.audio?.stop();
+      this.audio = undefined;
+      return;
+    }
+    this.stream = new MediaStream(this.audio ? [capture.track, this.audio] : [capture.track]);
     window.api.setInputView(this.view);
     window.api.sendInput({ t: 'hello', platform: viewerPlatform });
     const screen = { width: capture.width, height: capture.height };
@@ -535,6 +545,8 @@ export class Host {
     }
     this.capture?.stop();
     this.capture = undefined;
+    this.audio?.stop();
+    this.audio = undefined;
     window.api.setSessionState('idle');
     this.events.onSessionChange(null, error);
     // Devices removed during the session: leave the trusted room now that it is free.

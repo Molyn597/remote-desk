@@ -3,10 +3,12 @@ import { currentLanguage } from './i18n';
 type Section = { title: string; steps: string[]; icons?: string[] };
 
 const ICONS = {
+  favorite: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />',
   scale: '<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />',
   fullscreen: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />',
   monitor: '<rect x="2" y="4" width="12" height="9" rx="1.5" /><rect x="10" y="9" width="12" height="9" rx="1.5" /><path d="M14 22h4M16 18v4" />',
   quality: '<path d="M12 20a8 8 0 1 0-8-8M12 12l4-4" /><circle cx="12" cy="12" r="1.5" />',
+  audio: '<path d="M11 5L6 9H3v6h3l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />',
   view: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" />',
   keys: '<rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />',
   clipboard: '<rect x="8" y="3" width="8" height="4" rx="1" /><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" />',
@@ -51,10 +53,12 @@ const cs: Section[] = [
   {
     title: 'Lišta během relace',
     steps: [
+      'Hvězdička: přidat počítač do oblíbených (příště bez hesla). Druhý počítač to musí schválit.',
       'Přizpůsobit oknu nebo skutečná velikost (v ní se obraz posouvá u okrajů).',
       'Celá obrazovka.',
       'Monitor (jen když jich má vzdálený počítač víc): zobrazit jeden z nich, nebo všechny vedle sebe. V režimu vedle sebe přetáhnete okno z jednoho monitoru na druhý; štítek nad monitorem přepne zpět jen na něj.',
       'Kvalita: Automaticky drží ostrých 1920 px a při slabé síti ubere snímky. Dále Upřednostnit plynulost (1280 px), Maximální ostrost a Šetřit data (mobilní data). Volba se pamatuje. Aktuální rozlišení a fps vidíte v liště.',
+      'Zvuk vzdáleného počítače: přehrávat, nebo ztlumit (jen u vás). Volba se pamatuje.',
       'Jen sledovat: obraz vidíte, ale nic neovládáte.',
       'Odeslat zkratku, kterou by jinak zachytil váš systém (Alt+Tab, Win, Cmd+Tab…).',
       'Sdílená schránka: co zkopírujete na jednom počítači, můžete vložit na druhém. Tlačítkem ji vypnete.',
@@ -118,10 +122,12 @@ const en: Section[] = [
   {
     title: 'Session toolbar',
     steps: [
+      'Star: add the computer to favorites (no password next time). The other computer has to approve it.',
       'Fit to window or original size (the picture pans at the edges).',
       'Full screen.',
       'Monitor (only when the remote computer has more than one): show one of them, or all side by side. Side by side, you can drag a window from one monitor to the other; the label above a monitor switches back to it alone.',
       'Quality: Automatic keeps a sharp 1920 px and drops frames on a slow network. Also Optimize smoothness (1280 px), Maximum sharpness and Save data (mobile data). The choice is remembered. The toolbar shows the current resolution and fps.',
+      'Remote sound: play it or mute it (only here). The choice is remembered.',
       'View only: you see the screen but control nothing.',
       'Send a shortcut your own system would otherwise catch (Alt+Tab, Win, Cmd+Tab…).',
       'Shared clipboard: copy on one computer, paste on the other. Click to turn it off.',

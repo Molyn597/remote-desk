@@ -92,7 +92,8 @@ Pro vlastní počítače nebo lidi, kterým pomáháte často:
    počítači stále ukazuje.
 4. Aby se šlo připojit, i když u počítače nikdo není, zapněte v jeho Nastavení **Spouštět po
    přihlášení a běžet na pozadí**. Po zavření okna pak Remote Desk běží dál v liště nahoře (Mac)
-   nebo v oznamovací oblasti (Windows).
+   nebo v oznamovací oblasti (Windows). Zapněte i **Nedovolit uspání počítače**, jinak se k uspanému
+   počítači nepřipojíte.
 5. Oblíbené fungují jedním směrem. Pro připojení opačně přidejte oblíbený počítač i z druhé strany.
 6. Přístup zrušíte na tom počítači v **Nastavení → Kdo má tento počítač v oblíbených**. Tlačítko
    **Odebrat vše a vyměnit klíč** ho sebere všem zařízením najednou.
@@ -107,10 +108,12 @@ Lišta je nahoře uprostřed okna. Po chvíli se schová a znovu se ukáže, kdy
 
 | Tlačítko | Co dělá |
 | --- | --- |
+| Hvězdička | **Přidat do oblíbených**: příště se připojíte bez hesla. Člověk u druhého počítače to schválí. |
 | Rámeček | Přepíná mezi **přizpůsobit oknu** a **skutečnou velikostí**. Ve skutečné velikosti se obraz posouvá, když najedete k okraji. |
 | Šipky ven | **Celá obrazovka**. |
 | Dva monitory | **Monitor**, jen když má vzdálený počítač víc monitorů. Zobrazí jeden monitor (nejostřejší obraz), nebo **všechny monitory vedle sebe** tak, jak jsou na tom počítači uspořádané. Vedle sebe můžete okno přetáhnout z jednoho monitoru na druhý; štítek nad monitorem přepne zpět jen na něj. Volba se pro daný počítač pamatuje. |
 | Tachometr | **Kvalita**. **Automaticky** drží ostrých 1920 px a když síť nebo počítač nestíhá, ubere snímky (60 → 30 fps). **Upřednostnit plynulost** drží 60 fps při 1280 px pro slabou síť. **Maximální ostrost** posílá plné rozlišení při 30 fps. **Šetřit data** drží 1920 px při nejvýš 30 fps a asi 3 Mbit/s, pro mobilní data. Volba se pamatuje. Vedle lišta ukazuje odezvu, rozlišení, fps a datový tok, které skutečně dorazí. |
+| Reproduktor | **Zvuk** vzdáleného počítače: přehrávat, nebo u vás ztlumit. Windows zvuk sdílí vždy; Mac potřebuje macOS 14.2 nebo novější a poprvé se zeptá na povolení. |
 | Oko | **Jen sledovat**: obraz vidíte, ale myš a klávesnice se neposílají. |
 | Klávesnice | **Odeslat zkratku**, kterou by jinak zachytil váš vlastní systém (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
 | Schránka | **Sdílená schránka** zapnout/vypnout. Když je zapnutá, text zkopírovaný na jednom počítači vložíte na druhém (jen při povoleném ovládání). |

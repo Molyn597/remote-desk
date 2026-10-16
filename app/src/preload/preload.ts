@@ -15,6 +15,7 @@ const api: Api = {
   readLog: () => ipcRenderer.invoke('log-read'),
   clearLog: () => ipcRenderer.send('log-clear'),
   revealLog: () => ipcRenderer.send('log-reveal'),
+  setKeepAwake: (enabled) => ipcRenderer.send('keep-awake', enabled),
   setBackground: (enabled, labels) => ipcRenderer.send('background', enabled, labels),
   setCaptureTarget: (id) => ipcRenderer.invoke('capture-target', id),
   setInputView: (view) => ipcRenderer.send('input-view', view),

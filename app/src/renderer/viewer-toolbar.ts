@@ -44,6 +44,9 @@ export interface ToolbarOptions {
   removeFavorite(): void;
   // Send the favorite request right away (chosen from the recent list before connecting).
   requestFavorite?: boolean;
+  // The remote computer's sound: on or muted here; the choice is kept for next time.
+  audio: boolean;
+  onAudioChange(enabled: boolean): void;
 }
 
 const FAVORITE_TIMEOUT_MS = 75_000;
@@ -373,6 +376,21 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     clearTimeout(favoriteTimer);
     session.onFavorite = undefined;
   });
+
+  // Remote sound: play it here or mute it. Muting only affects this computer.
+  const renderAudio = () => {
+    const on = !video.muted;
+    $('tool-audio').classList.toggle('muted', !on);
+    $('tool-audio').title = t(on ? 'toolbar.mute' : 'toolbar.unmute');
+  };
+  video.muted = !options.audio;
+  onClick('tool-audio', () => {
+    video.muted = !video.muted;
+    options.onAudioChange(!video.muted);
+    renderAudio();
+  });
+  renderAudio();
+  cleanups.push(() => (video.muted = true));
 
   // Shared clipboard on/off for this session.
   onClick('tool-clipboard', () => {

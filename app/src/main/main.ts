@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import os from 'node:os';
 import { readFile, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import path from 'node:path';
@@ -29,6 +30,7 @@ import type {
 import { keepAliveOnClose, setRunAtLogin, setupBackground, startedHidden, type BackgroundLabels } from './background';
 import { listDisplays, viewRect } from './displays';
 import { clearLog, errorText, log, logFile, logStartup, readLog } from './log';
+import { setKeepAwake, setSessionAwake } from './power';
 import { handleInput, resetInput, setInputView, watchLocalMouse } from './input';
 import { watchClipboard, writeClipboard } from './clipboard';
 import { clearOffers, offerFiles, readOfferedFile, saveReceivedFile, wasSaved } from './files';
@@ -183,6 +185,7 @@ function showSessionPanel(info: SessionPanelInfo | null) {
 
 function onSessionState(state: SessionState) {
   if (state !== sessionState) log('info', 'session', `state ${sessionState} -> ${state}`);
+  setSessionAwake(state === 'host');
   if (state !== 'host') {
     resetInput();
     captureTarget = undefined;
@@ -198,6 +201,14 @@ function onSessionState(state: SessionState) {
 }
 
 const APP_ICON = path.join(__dirname, 'icon.png');
+
+// System sound can be captured on Windows, and on macOS 14.2+ (Darwin 23.2) via Core Audio taps.
+const systemAudio = (() => {
+  if (process.platform === 'win32') return true;
+  if (process.platform !== 'darwin') return false;
+  const [major, minor] = os.release().split('.').map(Number);
+  return major > 23 || (major === 23 && minor >= 2);
+})();
 
 // The UI follows the system language (Czech or English), not the app bundle's locale.
 const systemLocale = () => app.getPreferredSystemLanguages()[0] ?? app.getLocale();
@@ -278,13 +289,16 @@ app.whenReady().then(async () => {
       const primaryId = String(screen.getPrimaryDisplay().id);
       const source =
         sources.find((s) => s.display_id === captureTarget) ?? sources.find((s) => s.display_id === primaryId) ?? sources[0];
-      callback(source ? { video: source } : null);
+      callback(source ? { video: source, ...(request.audioRequested && systemAudio ? { audio: 'loopback' } : {}) } : null);
     } catch (err) {
       log('error', 'capture', `screen capture unavailable: ${errorText(err)}`);
       callback(null);
     }
   });
 
+  ipcMain.on('keep-awake', (e, enabled: unknown) => {
+    if (fromMainWindow(e)) setKeepAwake(enabled === true);
+  });
   ipcMain.on('background', (e, enabled: unknown, labels: BackgroundLabels) => {
     if (!fromMainWindow(e) || !win) return;
     setRunAtLogin(enabled === true);

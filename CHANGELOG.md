@@ -3,6 +3,13 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.13] - 2026-10-16
+
+### Added
+
+- Sound: you hear the remote computer. The speaker button in the toolbar mutes it on your side, and the choice is remembered. Windows shares its sound; a Mac needs macOS 14.2 or later and asks for permission the first time.
+- Keep this computer awake (Settings): the computer doesn't go to sleep, so you can reach it while you are away. The screen can still turn off. While someone is connected, the screen stays on.
+
 ## [0.1.12] - 2026-10-16
 
 ### Changed

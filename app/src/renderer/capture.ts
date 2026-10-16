@@ -21,6 +21,17 @@ async function captureDisplay(id: string): Promise<MediaStreamTrack> {
   return stream.getVideoTracks()[0];
 }
 
+// The computer's sound, captured once per session and kept while monitors are switched.
+export async function captureAudio(): Promise<MediaStreamTrack | undefined> {
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    stream.getVideoTracks().forEach((t) => t.stop());
+    return stream.getAudioTracks()[0];
+  } catch {
+    return undefined;
+  }
+}
+
 const size = (track: MediaStreamTrack) => {
   const { width = 0, height = 0 } = track.getSettings();
   return { width, height };

@@ -75,6 +75,7 @@ export interface Api {
   readLog(): Promise<string>;
   clearLog(): void;
   revealLog(): void;
+  setKeepAwake(enabled: boolean): void;
   setBackground(enabled: boolean, labels: { open: string; quit: string; tooltip: string }): void;
   revealFile(path: string): void;
   // What's new and feedback.

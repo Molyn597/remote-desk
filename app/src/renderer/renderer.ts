@@ -254,6 +254,11 @@ const viewer = new Viewer(config.platform, {
         renderRecent();
       },
       requestFavorite: favoriteAfterConnect === partnerId,
+      audio: settings.remoteAudio,
+      onAudioChange: (enabled) => {
+        settings = { ...settings, remoteAudio: enabled };
+        saveSettings(settings);
+      },
     });
     favoriteAfterConnect = '';
   },
@@ -625,6 +630,7 @@ function fillSettingsForm() {
   renderTrusted();
   $<HTMLInputElement>('setting-name').value = settings.displayName;
   $<HTMLInputElement>('setting-background').checked = settings.runInBackground;
+  $<HTMLInputElement>('setting-keep-awake').checked = settings.keepAwake;
   $<HTMLSelectElement>('setting-language').value = settings.language;
   refreshSelects();
   for (const radio of networkRadios()) radio.checked = radio.value === (settings.serverUrl ? 'own' : 'public');
@@ -652,6 +658,7 @@ $('settings-form').addEventListener('submit', (e) => {
     ...settings,
     displayName: $<HTMLInputElement>('setting-name').value.trim(),
     runInBackground: $<HTMLInputElement>('setting-background').checked,
+    keepAwake: $<HTMLInputElement>('setting-keep-awake').checked,
     language: $<HTMLSelectElement>('setting-language').value as Settings['language'],
     serverUrl,
     turnUrl: $<HTMLInputElement>('setting-turn-url').value.trim(),
@@ -665,7 +672,8 @@ $('settings-form').addEventListener('submit', (e) => {
     next.turnCredential !== settings.turnCredential;
   settings = next;
   saveSettings(settings);
-  logInfo('settings', `saved (${settings.serverUrl ? 'own server' : 'public network'}${settings.turnUrl ? ', TURN set' : ''}, language ${settings.language}, background ${settings.runInBackground ? 'on' : 'off'})`);
+  logInfo('settings', `saved (${settings.serverUrl ? 'own server' : 'public network'}${settings.turnUrl ? ', TURN set' : ''}, language ${settings.language}, background ${settings.runInBackground ? 'on' : 'off'}, keep awake ${settings.keepAwake ? 'on' : 'off'})`);
+  window.api.setKeepAwake(settings.keepAwake);
   applyLanguage();
   renderNetwork();
   if (networkChanged && !host.active) restartHost();
@@ -842,6 +850,7 @@ document.body.classList.add(`platform-${config.platform}`);
 for (const el of document.querySelectorAll<HTMLElement>('.mac-only')) el.hidden = !isMac;
 $('version').textContent = `v${config.version}`;
 document.querySelectorAll('select').forEach(enhanceSelect);
+window.api.setKeepAwake(settings.keepAwake);
 applyTheme();
 applyLanguage();
 void refreshPermissions();

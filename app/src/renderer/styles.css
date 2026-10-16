@@ -1809,3 +1809,13 @@ html:not(:fullscreen) .platform-linux .viewer-drag {
   fill: var(--accent);
   stroke: var(--accent);
 }
+
+/* Remote sound toggle */
+#tool-audio .audio-off,
+#tool-audio.muted .audio-on {
+  display: none;
+}
+
+#tool-audio.muted .audio-off {
+  display: block;
+}

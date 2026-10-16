@@ -93,7 +93,8 @@ For your own computers, or people you help often:
    connection on the other computer.
 4. To reach a computer while nobody is there, turn on **Start at login and run in the background**
    in its Settings. Closing the window then keeps Remote Desk running in the menu bar (Mac) or the
-   system tray (Windows).
+   system tray (Windows). Turn on **Keep this computer awake** too; a sleeping computer can't be
+   reached.
 5. Favorites work one way. To connect the other way round, add a favorite from the other computer too.
 6. To revoke access, remove the device in **Settings → Who has this computer as a favorite** on
    that computer. **Remove all and replace the key** revokes every device at once.
@@ -109,10 +110,12 @@ move the mouse to the top edge.
 
 | Button | What it does |
 | --- | --- |
+| Star | **Add to favorites**: next time you connect without a password. Someone at the other computer approves it. |
 | Frame | Switches between **fit to window** and **original size**. At original size the picture pans when you reach an edge. |
 | Arrows | **Full screen**. |
 | Two screens | **Monitor**, shown only when the remote computer has more than one. Show one monitor at a time (sharpest picture) or **all monitors side by side**, arranged as they are on that computer. Side by side, you can drag a window from one monitor to the other; the label above each monitor switches back to just that one. Your choice is remembered for that computer. |
 | Gauge | **Quality**. **Automatic** keeps a sharp 1920 px and drops frames (60 → 30 fps) when the network or computer can't keep up. **Optimize smoothness** keeps 60 fps at 1280 px for slow networks. **Maximum sharpness** sends the full resolution at 30 fps. **Save data** keeps 1920 px at up to 30 fps and about 3 Mbit/s, for mobile data. The choice is remembered. Next to it the toolbar shows the latency, resolution, fps and data rate that actually arrive. |
+| Speaker | **Sound** of the remote computer: play it or mute it here. Windows always shares its sound; a Mac needs macOS 14.2 or later and asks for permission the first time. |
 | Eye | **View only**: you see the screen but mouse and keyboard are not sent. |
 | Keyboard | **Send a shortcut** your own system would otherwise catch (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
 | Clipboard | **Shared clipboard** on or off. While on, text you copy on one computer can be pasted on the other (only when control is allowed). |

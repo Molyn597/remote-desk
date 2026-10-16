@@ -1,7 +1,7 @@
 {
   "name": "remote-desk-app",
   "productName": "Remote Desk",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Open-source remote desktop",
   "author": "remote-desk contributors",
   "license": "MIT",
@@ -63,7 +63,10 @@
         }
       ],
       "category": "public.app-category.utilities",
-      "identity": null
+      "identity": null,
+      "extendInfo": {
+        "NSAudioCaptureUsageDescription": "Remote Desk shares this computer's sound with the person you allowed to connect."
+      }
     },
     "win": {
       "target": [

@@ -11,6 +11,8 @@ export interface Settings {
   turnUsername: string;
   turnCredential: string;
   runInBackground: boolean; // start at login and stay in the tray/menu bar
+  keepAwake: boolean; // don't let the computer sleep (the screen may turn off)
+  remoteAudio: boolean; // play the remote computer's sound while viewing
 }
 
 export interface RecentPartner {
@@ -33,6 +35,8 @@ const DEFAULTS: Settings = {
   turnUsername: '',
   turnCredential: '',
   runInBackground: false,
+  keepAwake: false,
+  remoteAudio: true,
 };
 
 function read<T>(key: string, fallback: T): T {
