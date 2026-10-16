@@ -1052,6 +1052,23 @@ h3 {
   color: #fff;
 }
 
+/* A setting that differs from the default, e.g. a remembered quality mode. */
+.tool.badge {
+  position: relative;
+}
+
+.tool.badge::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgb(242 243 244);
+}
+
 .tool.danger {
   background: var(--accent);
   color: var(--accent-text);

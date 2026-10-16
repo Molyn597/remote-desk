@@ -1,7 +1,7 @@
 import { ALL_DISPLAYS, type InputEvent, type PowerAction, type Quality } from '../../../shared/protocol';
 import { t, type MessageKey } from './i18n';
 import type { ViewerSession } from './viewer';
-import { logInfo } from './log';
+import { logInfo, logWarn } from './log';
 import { attachInputCapture } from './viewer-input';
 
 const REVEAL_ZONE_PX = 70;
@@ -116,7 +116,10 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   } catch {
     // storage unavailable
   }
-  if (quality !== 'auto') session.sendControl({ quality });
+  if (quality !== 'auto') {
+    session.sendControl({ quality });
+    logInfo('viewer', `quality: ${quality} (remembered from the last session)`);
+  }
   const applyScale = () => {
     stage.classList.toggle('original', original);
     $('tool-scale').classList.toggle('active', original);
@@ -267,11 +270,16 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     for (const b of document.querySelectorAll<HTMLElement>('[data-quality]')) {
       b.classList.toggle('selected', b.dataset.quality === quality);
     }
+    // Anything but Automatic is marked on the button, so a remembered mode doesn't go unnoticed.
+    const tool = $('tool-quality');
+    tool.classList.toggle('badge', quality !== 'auto');
+    tool.title = `${t('toolbar.quality')}: ${t(`quality.${quality}` as MessageKey)}`;
   };
   for (const button of document.querySelectorAll<HTMLElement>('[data-quality]')) {
     listen(button, 'click', () => {
       quality = button.dataset.quality as Quality;
       session.sendControl({ quality });
+      logInfo('viewer', `quality: ${quality}`);
       try {
         localStorage.setItem(QUALITY_KEY, quality);
       } catch {
@@ -682,6 +690,8 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   let lastBytes = 0;
   let lastTime = 0;
   let statsTick = 0;
+  // Counters from the previous second, to report what changed when the picture froze.
+  let prev: { freezes: number; freezeTime: number; lost: number; nack: number; pli: number; keyframes: number; dropped: number } | undefined;
   const statsTimer = window.setInterval(async () => {
     const pc = session.connection();
     if (!pc) return;
@@ -706,6 +716,24 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
         const codec = s.codecId ? stats.get(s.codecId)?.mimeType?.replace('video/', '') : undefined;
         const delay = s.jitterBufferEmittedCount ? Math.round((s.jitterBufferDelay / s.jitterBufferEmittedCount) * 1000) : undefined;
         decoding = `${codec ?? '?'} ${s.decoderImplementation ?? '?'}${s.powerEfficientDecoder ? ' (hardware)' : ''}, buffer ${delay ?? '?'} ms, dropped ${s.framesDropped ?? 0}, lost ${s.packetsLost ?? 0}`;
+        const now = {
+          freezes: s.freezeCount ?? 0,
+          freezeTime: s.totalFreezesDuration ?? 0,
+          lost: s.packetsLost ?? 0,
+          nack: s.nackCount ?? 0,
+          pli: s.pliCount ?? 0,
+          keyframes: s.keyFramesDecoded ?? 0,
+          dropped: s.framesDropped ?? 0,
+        };
+        // The picture stood still: note how long and what happened in that second.
+        if (prev && now.freezes > prev.freezes) {
+          const ms = Math.round((now.freezeTime - prev.freezeTime) * 1000);
+          logWarn(
+            'viewer',
+            `picture froze for ${ms} ms: lost ${now.lost - prev.lost} packets, ${now.nack - prev.nack} resend and ${now.pli - prev.pli} full-picture requests, ${now.keyframes - prev.keyframes} full pictures, ${now.dropped - prev.dropped} frames dropped, buffer ${delay ?? '?'} ms`,
+          );
+        }
+        prev = now;
       }
       if (s.type === 'candidate-pair' && (s.id === pairId || (!pairId && s.nominated && s.state === 'succeeded'))) {
         if (s.currentRoundTripTime !== undefined) rtt = Math.round(s.currentRoundTripTime * 1000);

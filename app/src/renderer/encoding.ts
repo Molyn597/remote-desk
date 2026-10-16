@@ -38,11 +38,20 @@ export interface EncoderStats {
   width: number;
   height: number;
   limitedBy: string;
+  // Bitrate the encoder aims for, and what the connection is estimated to carry (Mb/s).
+  target: number;
+  available: number | undefined;
+  // Requests from the viewer for a full picture after it lost data.
+  pli: number;
 }
 
 // What the video encoder is doing right now: codec, hardware or software, frames, and what holds it back.
-export async function readEncoderStats(sender: RTCRtpSender): Promise<EncoderStats | undefined> {
+export async function readEncoderStats(sender: RTCRtpSender, pc?: RTCPeerConnection): Promise<EncoderStats | undefined> {
   const report = await sender.getStats();
+  let available: number | undefined;
+  (await pc?.getStats())?.forEach((s) => {
+    if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded' && s.availableOutgoingBitrate) available = s.availableOutgoingBitrate / 1e6;
+  });
   let out: EncoderStats | undefined;
   report.forEach((s) => {
     if (s.type !== 'outbound-rtp' || s.kind !== 'video') return;
@@ -55,6 +64,9 @@ export async function readEncoderStats(sender: RTCRtpSender): Promise<EncoderSta
       width: s.frameWidth ?? 0,
       height: s.frameHeight ?? 0,
       limitedBy: String(s.qualityLimitationReason ?? 'none'),
+      target: (s.targetBitrate ?? 0) / 1e6,
+      available,
+      pli: s.pliCount ?? 0,
     };
   });
   return out;

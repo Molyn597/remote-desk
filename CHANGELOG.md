@@ -3,6 +3,18 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.4] - 2026-10-17
+
+Test version of the smoother picture. Installed by beta testers; regular versions don't update to it.
+
+### Changed
+
+- The quality button in the session toolbar shows a dot when a mode other than Automatic is chosen, and its tooltip names the mode. The last chosen mode is remembered, so "Save data" (up to 30 fps) could stay on unnoticed.
+
+### Added
+
+- Diagnostics log: every time the picture freezes, the viewing computer notes for how long and what happened (lost data, requests for a full picture, dropped frames). The controlled computer notes the requested quality mode, its connection estimate and bitrate, and sudden drops.
+
 ## [0.2.0-beta.3] - 2026-10-17
 
 Test version of the smoother picture. Installed by beta testers; regular versions don't update to it.

@@ -307,6 +307,7 @@ export class Host {
       if (!inSession(peerId)) return;
       if (typeof data?.quality === 'string' && data.quality in QUALITY_PRESETS) {
         this.quality = data.quality;
+        logInfo('host', `viewer asked for quality: ${data.quality}`);
         void this.tuneSender();
       }
       if (typeof data?.view === 'string') this.switchView(peerId, data.view);
@@ -599,7 +600,8 @@ export class Host {
     // Retina or 4K screen isn't captured at full size only to be shrunk again before encoding.
     if (this.view !== ALL_DISPLAYS) {
       const limit = Number.isFinite(preset.maxWidth) ? { width: { max: preset.maxWidth }, height: { max: preset.maxWidth } } : {};
-      await track.applyConstraints({ ...limit, frameRate: { max: 60 } }).catch((err) => logInfo('host', `capture size not limited: ${err}`));
+      // Capture no more frames than the mode sends.
+      await track.applyConstraints({ ...limit, frameRate: { ideal: preset.fps, max: preset.fps } }).catch((err) => logInfo('host', `capture size not limited: ${err}`));
     }
     const width = track.getSettings().width || this.capture!.width;
     track.contentHint = preset.hint;
@@ -618,16 +620,26 @@ export class Host {
     clearInterval(this.encoderTimer);
     let tick = 0;
     let lastLine = '';
+    let lastPli = 0;
+    let lastAvailable = 0;
     this.encoderTimer = window.setInterval(async () => {
       const s = this.session;
       const track = this.capture?.track;
-      const sender = s && s.link.room.getPeers()[s.peerId]?.getSenders().find((x) => x.track === track);
+      const pc = s && s.link.room.getPeers()[s.peerId];
+      const sender = pc?.getSenders().find((x) => x.track === track);
       if (!sender) return;
-      const st = await readEncoderStats(sender).catch(() => undefined);
+      const st = await readEncoderStats(sender, pc).catch(() => undefined);
       if (!st) return;
-      const line = `encoder ${st.codec} ${st.encoder}${st.hardware === undefined ? '' : st.hardware ? ' (hardware)' : ' (software)'}, ${st.width}×${st.height} @${st.fps} fps, limited by ${st.limitedBy}`;
+      const mbps = (n: number) => n.toFixed(1);
+      const line = `encoder ${st.codec} ${st.encoder}${st.hardware === undefined ? '' : st.hardware ? ' (hardware)' : ' (software)'}, ${st.width}×${st.height} @${st.fps} fps, ${this.quality}, target ${mbps(st.target)} of ${st.available === undefined ? '?' : mbps(st.available)} Mb/s available, limited by ${st.limitedBy}`;
       if (tick++ % 3 === 0 || line.split(',')[0] !== lastLine.split(',')[0]) logInfo('host', line);
       lastLine = line;
+      // Moments that freeze the picture on the other side.
+      if (st.pli > lastPli) logWarn('host', `viewer lost data and asked for a full picture (${st.pli - lastPli}×)`);
+      if (st.available !== undefined && lastAvailable > 2 && st.available < lastAvailable * 0.6)
+        logWarn('host', `connection estimate fell from ${mbps(lastAvailable)} to ${mbps(st.available)} Mb/s`);
+      lastPli = st.pli;
+      lastAvailable = st.available ?? lastAvailable;
       this.cpuChecks = st.limitedBy === 'cpu' ? this.cpuChecks + 1 : 0;
       if (!this.cpuLimited && this.cpuChecks >= CPU_LIMIT_CHECKS && this.quality === 'auto') {
         this.cpuLimited = true;
