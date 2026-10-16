@@ -11,7 +11,6 @@ import {
   dialog,
   ipcMain,
   Menu,
-  safeStorage,
   screen,
   session,
   shell,
@@ -286,20 +285,6 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Trusted-device keys for computers this one connects to, encrypted with the OS keychain/DPAPI.
-  ipcMain.handle('protect', (e, text: unknown) =>
-    fromMainWindow(e) && typeof text === 'string' && text.length < 1000 && safeStorage.isEncryptionAvailable()
-      ? safeStorage.encryptString(text).toString('base64')
-      : null,
-  );
-  ipcMain.handle('unprotect', (e, data: unknown) => {
-    if (!fromMainWindow(e) || typeof data !== 'string' || data.length > 4000) return null;
-    try {
-      return safeStorage.decryptString(Buffer.from(data, 'base64'));
-    } catch {
-      return null;
-    }
-  });
   ipcMain.on('background', (e, enabled: unknown, labels: BackgroundLabels) => {
     if (!fromMainWindow(e) || !win) return;
     setRunAtLogin(enabled === true);

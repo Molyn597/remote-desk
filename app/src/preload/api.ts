@@ -70,9 +70,6 @@ export interface Api {
   pickFilesToSend(title: string): Promise<FileOffer[]>;
   readOfferedFile(id: string): Promise<{ name: string; data: ArrayBuffer } | null>;
   setTheme(theme: 'light' | 'dark'): void;
-  // Encrypts/decrypts small secrets with the OS keychain; null when unavailable.
-  protect(text: string): Promise<string | null>;
-  unprotect(data: string): Promise<string | null>;
   // Diagnostics log (main process writes the file; secrets and IDs are redacted there).
   log(level: 'info' | 'warn' | 'error', source: string, message: string): void;
   readLog(): Promise<string>;

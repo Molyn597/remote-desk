@@ -98,7 +98,7 @@ Pro vlastní počítače nebo lidi, kterým pomáháte často:
    **Odebrat vše a vyměnit klíč** ho sebere všem zařízením najednou.
 
 Připojení používá zvláštní klíč, který vašemu zařízení předá druhý počítač. Ukládá se šifrovaně
-systémem (Klíčenka na macOS, DPAPI na Windows) a sám nestačí: vaše zařízení musí navíc prokázat,
+klíčem, který z aplikace nejde vytáhnout, a sám nestačí: vaše zařízení musí navíc prokázat,
 že vlastní svůj soukromý klíč.
 
 ## Lišta během relace

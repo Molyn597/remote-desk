@@ -99,7 +99,7 @@ For your own computers, or people you help often:
    that computer. **Remove all and replace the key** revokes every device at once.
 
 The connection uses a separate key that the other computer hands to your device. It is stored
-encrypted by your system (Keychain on macOS, DPAPI on Windows), and on its own it is not enough:
+encrypted with a key that can't be read out of the app, and on its own it is not enough:
 your device also has to prove it holds its own private key.
 
 ## Session toolbar

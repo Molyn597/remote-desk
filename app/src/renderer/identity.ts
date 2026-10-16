@@ -78,3 +78,38 @@ export async function loadIdentity(): Promise<Identity | undefined> {
     return undefined;
   }
 }
+
+// Secrets kept for later (the trusted-room keys of favorite computers) are encrypted with
+// a non-extractable AES key stored next to the device key. Unlike the OS keychain this
+// never prompts and keeps working after updates.
+const VAULT_PREFIX = 'v1:';
+
+async function vaultKey(): Promise<CryptoKey> {
+  const db = await openDb();
+  let key = await idb<CryptoKey | undefined>(db, 'readonly', (s) => s.get('vault'));
+  if (!key) {
+    key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    await idb(db, 'readwrite', (s) => s.put(key, 'vault'));
+  }
+  return key;
+}
+
+export async function sealSecret(text: string): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await vaultKey(), encode(text));
+  const out = new Uint8Array(iv.length + data.byteLength);
+  out.set(iv);
+  out.set(new Uint8Array(data), iv.length);
+  return VAULT_PREFIX + toBase64(out.buffer);
+}
+
+export async function openSecret(sealed: string): Promise<string | null> {
+  if (!sealed.startsWith(VAULT_PREFIX)) return null;
+  try {
+    const bytes = fromBase64(sealed.slice(VAULT_PREFIX.length));
+    const data = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, await vaultKey(), bytes.slice(12));
+    return new TextDecoder().decode(data);
+  } catch {
+    return null;
+  }
+}

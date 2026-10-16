@@ -47,7 +47,7 @@ export interface ViewerSession {
   onLayout?: () => void;
   // Ask the host to add it to this device's favorites; it answers after someone approves.
   requestFavorite(): void;
-  onFavorite?: (accepted: boolean) => void;
+  onFavorite?: (result: 'added' | 'declined' | 'saveFailed') => void;
   // False when the host granted view-only access or paused control.
   canControl: boolean;
   onControlChange?: (canControl: boolean) => void;
@@ -74,7 +74,8 @@ export interface ViewerEvents {
   onStream(stream: MediaStream): void;
   onEnd(error?: ViewerError): void;
   // The host remembered this device and gave it the key to its trusted-device room.
-  onPaired(hostId: string, secret: string, hostName: string): void;
+  // Resolves to whether the favorite could be saved.
+  onPaired(hostId: string, secret: string, hostName: string): Promise<boolean>;
 }
 
 const validScreen = (s: unknown) => {
@@ -154,14 +155,13 @@ export class Viewer {
     pair.onMessage = (data, { peerId }) => {
       if (peerId === this.hostPeer && this.connected && isTrustSecret(data?.secret)) {
         logInfo('viewer', 'host trusts this device (favorite)');
-        this.events.onPaired(partnerId, data.secret, this.hostName);
-        session?.onFavorite?.(true);
+        void this.events.onPaired(partnerId, data.secret, this.hostName).then((saved) => session?.onFavorite?.(saved ? 'added' : 'saveFailed'));
       }
     };
     favoriteAnswer.onMessage = (data, { peerId }) => {
       if (peerId !== this.hostPeer || data?.accepted !== false) return;
       logInfo('viewer', 'favorite request declined');
-      session?.onFavorite?.(false);
+      session?.onFavorite?.('declined');
     };
 
     layout.onMessage = (data, { peerId }) => {

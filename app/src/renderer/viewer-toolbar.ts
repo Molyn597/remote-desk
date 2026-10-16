@@ -335,13 +335,14 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
       showTransfer(t('favorite.noAnswer'), true, 6000);
     }, FAVORITE_TIMEOUT_MS);
   };
-  session.onFavorite = (accepted) => {
+  session.onFavorite = (result) => {
     clearTimeout(favoriteTimer);
     const was = favorite;
-    favorite = accepted ? 'yes' : 'none';
+    favorite = result === 'added' ? 'yes' : 'none';
     renderStar();
-    if (accepted && was !== 'yes') showTransfer(t('favorite.added'), false, 5000);
-    if (!accepted && was === 'pending') showTransfer(t('favorite.declined'), true, 6000);
+    if (result === 'added' && was !== 'yes') showTransfer(t('favorite.added'), false, 5000);
+    if (result === 'saveFailed') showTransfer(t('favorite.saveFailed'), true, 8000);
+    if (result === 'declined' && was === 'pending') showTransfer(t('favorite.declined'), true, 6000);
   };
   onClick('tool-favorite', () => {
     if (favorite === 'pending') return;

@@ -1,10 +1,10 @@
 import type { Api, PermissionKind, UpdateState } from '../preload/api';
 import { parseChangelog, renderRelease, type Release } from './changelog';
 import { renderHelp } from './help';
-import { captureErrors, logInfo } from './log';
+import { captureErrors, logError, logInfo } from './log';
 import { enhanceSelect, refreshSelects } from './select';
 import { Host, type HostSession, type Visitor } from './host';
-import { loadIdentity } from './identity';
+import { loadIdentity, openSecret, sealSecret } from './identity';
 import { currentLanguage, setLanguage, t, type MessageKey } from './i18n';
 import { isOnline } from './network';
 import {
@@ -284,8 +284,11 @@ const viewer = new Viewer(config.platform, {
     viewerTrusted = false;
   },
   onPaired: async (id, secret, hostName) => {
-    const encrypted = await window.api.protect(secret);
-    if (!encrypted) return; // no OS encryption: don't keep the key in plain text
+    const encrypted = await sealSecret(secret).catch((err) => {
+      logError('viewer', `saving the favorite key failed: ${err}`);
+      return null;
+    });
+    if (!encrypted) return false;
     const existing = loadMyDevices().find((d) => d.id === id);
     saveMyDevice({
       id,
@@ -296,6 +299,8 @@ const viewer = new Viewer(config.platform, {
     });
     renderMyDevices();
     renderRecent();
+    logInfo('viewer', `favorite saved (${id})`);
+    return true;
   },
 });
 
@@ -426,7 +431,7 @@ $('reveal-password').addEventListener('click', () => {
 
 async function connectTrusted(device: MyDevice) {
   if (viewerBusy) return;
-  const secret = await window.api.unprotect(device.secret);
+  const secret = await openSecret(device.secret);
   if (!secret) return setStatus(t('msg.keyUnreadable'), true);
   showPage('home');
   viewerPartnerId = device.id;

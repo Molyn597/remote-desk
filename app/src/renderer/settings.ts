@@ -68,11 +68,11 @@ export function removeRecent(id: string) {
 }
 
 // Computers that trust this device: connect with one click, no password.
-// The room secret is stored encrypted by the OS (Keychain/DPAPI) via the main process.
+// The room secret is stored encrypted with this install's vault key (see identity.ts).
 export interface MyDevice {
   id: string;
   name: string;
-  secret: string; // encrypted, base64
+  secret: string; // sealed with sealSecret
   added: number;
   lastConnected?: number;
 }

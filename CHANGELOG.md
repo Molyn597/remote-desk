@@ -3,6 +3,18 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.11] - 2026-10-16
+
+### Fixed
+
+- macOS: favorites were not saved, because the app couldn't use the Keychain. Favorite keys are now encrypted with a key kept inside the app, which needs no Keychain access and keeps working after updates. Favorites added before this version have to be added again.
+- "Added to favorites" now appears only once the favorite is really saved; otherwise the toolbar says it couldn't be saved.
+- File paths in the diagnostics log are no longer hidden as if they were keys.
+
+### Security
+
+- Other programs on the computer can no longer start Remote Desk in Node or debugging mode (ELECTRON_RUN_AS_NODE, NODE_OPTIONS, --inspect). That could have been used to borrow its screen recording and accessibility permissions.
+
 ## [0.1.10] - 2026-10-16
 
 ### Fixed

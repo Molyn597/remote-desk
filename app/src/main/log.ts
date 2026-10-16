@@ -13,11 +13,12 @@ const MAX_LINE = 600;
 const LEVELS = new Set<LogLevel>(['info', 'warn', 'error']);
 
 // The log is meant to be pasted into bug reports: partner IDs keep only their last digits
-// and anything that looks like a key or token is dropped.
+// and anything that looks like a key or token (long base64url runs) is dropped. Slashes end
+// a run, so file paths stay readable; public keys and signatures are not secret.
 export function redact(text: string): string {
   return text
     .replace(/\b\d{3}[ -]?\d{3}[ -]?(\d{3})\b/g, '••• ••• $1')
-    .replace(/[A-Za-z0-9+/_-]{32,}={0,2}/g, '[redacted]');
+    .replace(/[A-Za-z0-9_-]{32,}={0,2}/g, '[redacted]');
 }
 
 function clean(message: unknown): string {
