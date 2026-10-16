@@ -135,6 +135,12 @@ Czech or English, following the system by default. The light/dark switch is at t
 
 Both computers must use the same network setting, or they won't find each other.
 
+### Diagnostics
+
+The log of what the app did: connections, their route (direct or via a relay), errors with screen
+capture, permissions, updates and file transfers. **Show file** opens its folder
+(`~/Library/Logs/Remote Desk` on macOS, `%APPDATA%\Remote Desk\logs` on Windows).
+
 ### TURN relay
 
 Most connections go directly between the computers. On mobile data or strict corporate networks that
@@ -152,6 +158,10 @@ Use your own (e.g. [coturn](https://github.com/coturn/coturn)) or a hosted servi
 - Create a new password after each session.
 
 ## Troubleshooting
+
+The exact reason for an error is in **Settings → Diagnostics**; the **Details** link next to an
+error message opens it. **Copy** puts the log on the clipboard for a bug report. Passwords, keys
+and clipboard contents are never written there, and partner IDs are shortened.
 
 **"Could not connect"**
 - Check the ID and password. The password changes every time the app starts.

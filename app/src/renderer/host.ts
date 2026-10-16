@@ -24,6 +24,7 @@ import {
 import type { ConfirmChoice } from '../preload/api';
 import { captureView, type Capture } from './capture';
 import { challengeText, fingerprint, newNonce, verify } from './identity';
+import { logError, logInfo, logWarn, watchConnection } from './log';
 import { join } from './network';
 import { addTrusted, loadTrusted, loadTrustSecret, touchTrusted, type Settings } from './settings';
 
@@ -128,6 +129,7 @@ export class Host {
     this.hostId = id;
     this.settings = settings;
     this.links = [this.openRoom(join(settings, id, password), false)];
+    logInfo('host', `waiting for connections (${settings.serverUrl ? 'own server' : 'public network'}${settings.turnUrl ? ', TURN set' : ''})`);
     this.syncTrustedRoom();
   }
 
@@ -139,12 +141,14 @@ export class Host {
       const room = join(this.settings, trustedRoom(this.hostId), loadTrustSecret());
       this.trustedLink = this.openRoom(room, true);
       this.links.push(this.trustedLink);
+      logInfo('host', 'trusted-device room open');
     } else if (!wanted && this.trustedLink && this.session?.link !== this.trustedLink) {
       const link = this.trustedLink;
       this.trustedLink = undefined;
       this.links = this.links.filter((l) => l !== link);
       if (this.pending?.link === link) this.pending = undefined;
       void link.room.leave();
+      logInfo('host', 'trusted-device room closed (no trusted devices)');
     }
   }
 
@@ -237,6 +241,9 @@ export class Host {
       const name = String((metadata as FileMeta | undefined)?.name ?? 'file').slice(0, 200);
       const buffer = data instanceof ArrayBuffer ? data : new Uint8Array(data as ArrayBufferLike).slice().buffer;
       const path = await window.api.saveReceivedFile(name, buffer).catch(() => null);
+      const size = `${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB`;
+      if (path) logInfo('host', `file received (${size})`);
+      else logError('host', `saving a received file failed (${size})`);
       void fileAck.send({ name, ok: Boolean(path) }, { target: peerId });
       this.events.onFileReceived(name, path);
     };
@@ -303,21 +310,30 @@ export class Host {
 
   private async handleRequest(peer: Peer, viewerPlatform: string, visitor: Visitor) {
     const { peerId, link } = peer;
+    const where = link.trustedOnly ? 'trusted room' : 'password room';
     if (this.active) {
       const current = this.isPending(peer) || (this.session?.peerId === peerId && this.session.link === link);
-      if (!current) link.send.answer({ accepted: false, reason: 'busy' }, peerId);
+      if (!current) {
+        logInfo('host', `request from ${visitor.id || 'unknown ID'} refused: busy`);
+        link.send.answer({ accepted: false, reason: 'busy' }, peerId);
+      }
       return;
     }
     if ((this.declined.get(peerId) ?? 0) > Date.now()) {
+      logInfo('host', `request from ${visitor.id || 'unknown ID'} refused: declined recently`);
       return link.send.answer({ accepted: false, reason: 'declined' }, peerId);
     }
+    logInfo('host', `connection request from ${visitor.id || 'unknown ID'} (${viewerPlatform || '?'}, ${where})`);
     this.pending = peer;
 
     // A remembered device skips the prompt once it proves it holds its private key.
     const print = visitor.key ? await fingerprint(visitor.key).catch(() => undefined) : undefined;
     const trusted = print && loadTrusted().find((d) => d.fingerprint === print && d.publicKey === visitor.key);
-    if (trusted && (await this.verifyPeer(peer, visitor.key!))) {
+    const verified = Boolean(trusted) && (await this.verifyPeer(peer, visitor.key!));
+    if (trusted && !verified) logWarn('host', 'trusted device failed to prove its key');
+    if (trusted && verified) {
       if (!this.isPending(peer)) return;
+      logInfo('host', 'trusted device verified, no prompt');
       this.pending = undefined;
       touchTrusted(trusted.fingerprint);
       const known = { ...visitor, name: visitor.name || trusted.name };
@@ -325,13 +341,15 @@ export class Host {
     }
     // Nobody is asked in the trusted room: unknown or removed devices are simply turned away.
     if (link.trustedOnly) {
+      logWarn('host', 'refused in trusted room: device is not trusted');
       if (this.isPending(peer)) this.pending = undefined;
       this.declined.set(peerId, Date.now() + DECLINE_COOLDOWN_MS);
       return link.send.answer({ accepted: false, reason: 'untrusted' }, peerId);
     }
 
     const { choice, remember } = await this.events.confirm({ ...visitor, key: print ? visitor.key : undefined });
-    if (!this.isPending(peer)) return; // viewer left while the dialog was open
+    if (!this.isPending(peer)) return logInfo('host', 'viewer left while the prompt was open');
+    logInfo('host', `prompt answered: ${choice}${remember ? ', remember device' : ''}`);
     if (choice === 'deny') {
       this.pending = undefined;
       this.declined.set(peerId, Date.now() + DECLINE_COOLDOWN_MS);
@@ -381,7 +399,7 @@ export class Host {
       this.quality = 'auto';
       capture = await captureView(this.view, this.displays);
     } catch (err) {
-      console.error(err);
+      logError('host', `screen capture failed: ${err instanceof Error ? `${err.name}: ${err.message}` : err}`);
       link.send.answer({ accepted: false, reason: 'capture' }, peerId);
       this.endSession(false, 'capture');
       return;
@@ -395,6 +413,8 @@ export class Host {
     window.api.setInputView(this.view);
     window.api.sendInput({ t: 'hello', platform: viewerPlatform });
     const screen = { width: capture.width, height: capture.height };
+    logInfo('host', `session started (${canControl ? 'control' : 'view only'}${trusted ? ', trusted' : ''}, ${this.displays.length} monitor(s), ${screen.width}×${screen.height})`);
+    watchConnection('host', link.room.getPeers()[peerId]);
     link.send.answer({ accepted: true, control: canControl, screen }, peerId);
     link.send.layout({ displays: this.displays, view: this.view, screen }, peerId);
     // A verified trusted device gets the key to come back without the password.
@@ -411,7 +431,7 @@ export class Host {
       this.displays = await window.api.getDisplays();
       if (view !== ALL_DISPLAYS && !this.displays.some((d) => d.id === view)) return;
       if (view === ALL_DISPLAYS && this.displays.length < 2) return;
-      const next = await captureView(view, this.displays).catch((err) => console.error(err));
+      const next = await captureView(view, this.displays).catch((err) => logError('host', `switching monitor failed: ${err}`));
       if (!next) return;
       const old = this.capture;
       const sender = s.link.room.getPeers()[peerId]?.getSenders().find((x) => x.track === old.track);
@@ -422,6 +442,7 @@ export class Host {
       this.capture = next;
       old.stop();
       this.view = view;
+      logInfo('host', view === ALL_DISPLAYS ? 'showing all monitors' : `showing monitor ${this.displays.findIndex((d) => d.id === view) + 1}`);
       window.api.setInputView(view);
       s.link.send.layout({ displays: this.displays, view, screen: { width: next.width, height: next.height } }, peerId);
       await this.tuneSender();
@@ -458,6 +479,7 @@ export class Host {
     const s = this.session;
     if (!s) return;
     this.session = undefined;
+    logInfo('host', `session ended (${notifyPeer ? 'disconnected here' : error ?? 'stopped'}, ${Math.round((Date.now() - s.startedAt) / 1000)} s)`);
     if (notifyPeer) s.link.send.bye(s.peerId);
     if (this.stream) {
       s.link.room.removeStream(this.stream, { target: s.peerId });

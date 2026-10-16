@@ -135,6 +135,12 @@ Jazyk je čeština, nebo angličtina, výchozí podle systému. Přepínač svě
 
 Oba počítače musí mít stejné nastavení sítě, jinak se nenajdou.
 
+### Diagnostika
+
+Záznam toho, co aplikace dělala: připojení a jejich cesta (přímo, nebo přes relé), chyby snímání
+obrazovky, oprávnění, aktualizací a přenosu souborů. **Zobrazit soubor** otevře jeho složku
+(`~/Library/Logs/Remote Desk` na macOS, `%APPDATA%\Remote Desk\logs` na Windows).
+
 ### TURN relé
 
 Většina spojení vede přímo mezi počítači. Na mobilních datech nebo v přísných firemních sítích to ale
@@ -152,6 +158,10 @@ a heslo. Můžete použít vlastní (např. [coturn](https://github.com/coturn/c
 - Po relaci si vygenerujte nové heslo.
 
 ## Když něco nefunguje
+
+Přesný důvod chyby najdete v **Nastavení → Diagnostika**; otevře ji i odkaz **Podrobnosti** u
+chybové hlášky. **Kopírovat** vloží log do schránky pro hlášení chyby. Hesla, klíče ani obsah
+schránky se do něj nikdy nezapisují a ID partnerů jsou zkrácená.
 
 **„Nepodařilo se připojit“**
 - Zkontrolujte ID a heslo. Heslo se mění při každém spuštění aplikace.

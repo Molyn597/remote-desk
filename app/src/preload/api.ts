@@ -73,6 +73,11 @@ export interface Api {
   // Encrypts/decrypts small secrets with the OS keychain; null when unavailable.
   protect(text: string): Promise<string | null>;
   unprotect(data: string): Promise<string | null>;
+  // Diagnostics log (main process writes the file; secrets and IDs are redacted there).
+  log(level: 'info' | 'warn' | 'error', source: string, message: string): void;
+  readLog(): Promise<string>;
+  clearLog(): void;
+  revealLog(): void;
   setBackground(enabled: boolean, labels: { open: string; quit: string; tooltip: string }): void;
   revealFile(path: string): void;
   // What's new and feedback.

@@ -29,6 +29,7 @@ import type {
 } from '../preload/api';
 import { keepAliveOnClose, setRunAtLogin, setupBackground, startedHidden, type BackgroundLabels } from './background';
 import { listDisplays, viewRect } from './displays';
+import { clearLog, errorText, log, logFile, logStartup, readLog } from './log';
 import { handleInput, resetInput, setInputView, watchLocalMouse } from './input';
 import { watchClipboard, writeClipboard } from './clipboard';
 import { clearOffers, offerFiles, readOfferedFile, saveReceivedFile, wasSaved } from './files';
@@ -126,6 +127,9 @@ function createWindow(hidden = false) {
       backgroundThrottling: false,
     },
   });
+  win.webContents.on('render-process-gone', (_e, details) =>
+    log('error', 'main', `window process gone: ${details.reason} (exit code ${details.exitCode})`),
+  );
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   keepAliveOnClose(win);
@@ -179,6 +183,7 @@ function showSessionPanel(info: SessionPanelInfo | null) {
 }
 
 function onSessionState(state: SessionState) {
+  if (state !== sessionState) log('info', 'session', `state ${sessionState} -> ${state}`);
   if (state !== 'host') {
     resetInput();
     captureTarget = undefined;
@@ -240,7 +245,7 @@ async function resetPermission(kind: PermissionKind): Promise<boolean> {
   try {
     await promisify(execFile)('/usr/bin/tccutil', ['reset', TCC_SERVICES[kind], appId]);
   } catch (err) {
-    console.error('tccutil reset failed', err);
+    log('error', 'permission', `resetting ${kind} failed: ${errorText(err)}`);
     return false;
   }
   await requestPermission(kind);
@@ -259,6 +264,10 @@ async function requestPermission(kind: PermissionKind) {
 if (!app.requestSingleInstanceLock()) app.exit(0);
 
 app.whenReady().then(async () => {
+  logStartup();
+  if (isMac) {
+    log('info', 'permission', `screen recording ${systemPreferences.getMediaAccessStatus('screen')}, accessibility ${systemPreferences.isTrustedAccessibilityClient(false) ? 'granted' : 'not granted'}`);
+  }
   await offerMoveToApplications();
   // The packaged app takes its icon from the bundle; during development show ours too.
   if (isMac && !app.isPackaged) app.dock?.setIcon(APP_ICON);
@@ -272,7 +281,7 @@ app.whenReady().then(async () => {
         sources.find((s) => s.display_id === captureTarget) ?? sources.find((s) => s.display_id === primaryId) ?? sources[0];
       callback(source ? { video: source } : null);
     } catch (err) {
-      console.error('screen capture unavailable', err);
+      log('error', 'capture', `screen capture unavailable: ${errorText(err)}`);
       callback(null);
     }
   });
@@ -301,6 +310,16 @@ app.whenReady().then(async () => {
       quit: String(labels?.quit ?? ''),
       tooltip: String(labels?.tooltip ?? ''),
     });
+  });
+  ipcMain.on('log', (e, level, source, message) => {
+    if (fromMainWindow(e)) log(level, `${String(source).slice(0, 10)}`, message);
+  });
+  ipcMain.handle('log-read', (e) => (fromMainWindow(e) ? readLog() : ''));
+  ipcMain.on('log-clear', (e) => {
+    if (fromMainWindow(e)) clearLog();
+  });
+  ipcMain.on('log-reveal', (e) => {
+    if (fromMainWindow(e)) shell.showItemInFolder(logFile());
   });
   ipcMain.handle('config', () => ({
     platform: process.platform,
@@ -399,7 +418,7 @@ app.whenReady().then(async () => {
     try {
       handleInput(ev);
     } catch (err) {
-      console.error('input failed', err);
+      log('error', 'input', `input failed: ${errorText(err)}`);
     }
   });
 

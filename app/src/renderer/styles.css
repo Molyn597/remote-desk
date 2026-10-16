@@ -1658,3 +1658,49 @@ html:not(:fullscreen) .platform-linux .viewer-drag {
   display: block;
   margin-top: 2px;
 }
+
+/* Diagnostics log */
+.log-view {
+  height: 260px;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  border-radius: var(--radius-md);
+  background: var(--pill);
+  color: var(--text);
+  font: 12px/1.55 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.log-view .log-warn {
+  color: var(--accent);
+}
+
+.log-view .log-error {
+  color: #e5484d;
+}
+
+.log-view .log-empty {
+  color: var(--muted);
+}
+
+.log-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.status-details {
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

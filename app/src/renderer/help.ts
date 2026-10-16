@@ -78,6 +78,7 @@ const cs: Section[] = [
     steps: [
       '„Nepodařilo se připojit“: zkontrolujte ID a heslo, že na druhém počítači běží Remote Desk a že oba počítače mají v Nastavení stejnou síť.',
       'Pomalý nebo trhaný obraz: v liště zvolte Kvalita → Upřednostnit rychlost.',
+      'Přesný důvod chyby najdete v Nastavení → Diagnostika (nebo přes odkaz Podrobnosti u chybové hlášky). Tlačítkem Kopírovat ho vložíte do hlášení chyby.',
       'Na mobilních datech nebo ve firemní síti se spojení nemusí navázat. Pomůže TURN relé v Nastavení.',
       'Na Macu musí ovládaný počítač mít povolené Nahrávání obrazovky a Zpřístupnění (stránka Oprávnění).',
     ],
@@ -143,6 +144,7 @@ const en: Section[] = [
     steps: [
       '“Could not connect”: check the ID and password, that Remote Desk is running on the other computer and that both use the same network in Settings.',
       'Slow or choppy picture: choose Quality → Optimize speed in the toolbar.',
+      'The exact reason for an error is in Settings → Diagnostics (or click Details next to the error). Copy it into a bug report.',
       'On mobile data or corporate networks a connection may fail. A TURN relay in Settings helps.',
       'On a Mac, the controlled computer needs Screen Recording and Accessibility permissions (Permissions page).',
     ],

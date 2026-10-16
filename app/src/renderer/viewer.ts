@@ -22,6 +22,7 @@ import {
   trustedRoom,
 } from '../../../shared/protocol';
 import { challengeText, type Identity } from './identity';
+import { logInfo, logWarn, watchConnection } from './log';
 import { join } from './network';
 import type { Settings } from './settings';
 
@@ -114,8 +115,10 @@ export class Viewer {
     me: { name: string; id: string; identity?: Identity },
     trusted = false,
   ) {
+    logInfo('viewer', `connecting to ${partnerId}${trusted ? ' as a trusted device' : ''} (${settings.serverUrl ? 'own server' : 'public network'})`);
     const room = join(settings, trusted ? trustedRoom(partnerId) : partnerId, password, {
       onJoinError: (e) => {
+        logWarn('viewer', `join error: ${e.error}`);
         if (/password/i.test(e.error)) this.end('wrongPassword');
       },
     });
@@ -143,6 +146,7 @@ export class Viewer {
 
     pair.onMessage = (data, { peerId }) => {
       if (peerId === this.hostPeer && this.connected && isTrustSecret(data?.secret)) {
+        logInfo('viewer', 'host remembered this device (key saved)');
         this.events.onPaired(partnerId, data.secret, this.hostName);
       }
     };
@@ -174,6 +178,9 @@ export class Viewer {
       const name = String((metadata as FileMeta | undefined)?.name ?? 'file').slice(0, 200);
       const buffer = data instanceof ArrayBuffer ? data : new Uint8Array(data as ArrayBufferLike).slice().buffer;
       const path = await window.api.saveReceivedFile(name, buffer).catch(() => null);
+      const size = `${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB`;
+      if (path) logInfo('viewer', `file downloaded (${size})`);
+      else logWarn('viewer', `saving a downloaded file failed (${size})`);
       session?.onDownloaded?.(name, path);
     };
     let session: ViewerSession | undefined;
@@ -212,17 +219,21 @@ export class Viewer {
       pendingChallenges.clear();
       this.hostPlatform = String(data.platform);
       this.hostName = String(data.name ?? '').replace(/[\p{C}]/gu, '').trim().slice(0, MAX_NAME_LENGTH);
+      logInfo('viewer', `host found (${this.hostPlatform || '?'}), waiting for it to allow`);
       this.events.onStatus('waiting');
       this.startTimer(ACCEPT_TIMEOUT_MS, 'noResponse');
     };
     answer.onMessage = (data, { peerId }) => {
       if (peerId !== this.hostPeer || this.connected) return;
       if (!data?.accepted) {
+        logInfo('viewer', `refused by host: ${data?.reason ?? 'declined'}`);
         const known: AnswerReason[] = ['declined', 'busy', 'capture', 'untrusted'];
         return this.end(known.includes(data?.reason as AnswerReason) ? data.reason : 'declined');
       }
       clearTimeout(this.timer);
       this.connected = true;
+      logInfo('viewer', `allowed (${data.control !== false ? 'control' : 'view only'})`);
+      watchConnection('viewer', this.room?.getPeers()[peerId]);
       session = {
         hostPlatform: this.hostPlatform,
         hostName: this.hostName,
@@ -249,11 +260,14 @@ export class Viewer {
             await file.send(await f.arrayBuffer(), { target: peerId, metadata: meta, onProgress: (p) => onProgress(p) });
           } catch {
             ackWaiters.delete(name);
+            logWarn('viewer', 'file transfer refused by host');
             return 'rejected';
           }
           const ok = await Promise.race([acked, new Promise<boolean>((r) => setTimeout(() => r(false), 30_000))]);
           ackWaiters.delete(name);
-          return ok ? 'sent' : 'rejected';
+          const result = ok ? 'sent' : 'rejected';
+          logInfo('viewer', `file ${result} (${(f.size / 1024 / 1024).toFixed(1)} MB)`);
+          return result;
         },
       };
       window.api.watchClipboard(true);
@@ -262,6 +276,7 @@ export class Viewer {
     status.onMessage = (data, { peerId }) => {
       if (!session || peerId !== this.hostPeer || typeof data?.control !== 'boolean') return;
       session.canControl = data.control;
+      logInfo('viewer', `host ${data.control ? 'resumed' : 'paused'} control`);
       session.onControlChange?.(data.control);
     };
     room.onPeerStream = (stream, peerId) => {
@@ -295,6 +310,8 @@ export class Viewer {
 
   private end(error?: ViewerError) {
     if (!this.room) return;
+    if (error) logWarn('viewer', `ended: ${error}`);
+    else logInfo('viewer', 'disconnected');
     clearTimeout(this.timer);
     const room = this.room;
     this.room = undefined;

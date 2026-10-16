@@ -1,6 +1,7 @@
 import type { Api, PermissionKind, UpdateState } from '../preload/api';
 import { parseChangelog, renderRelease, type Release } from './changelog';
 import { renderHelp } from './help';
+import { captureErrors, logInfo } from './log';
 import { enhanceSelect, refreshSelects } from './select';
 import { Host, type HostSession, type Visitor } from './host';
 import { loadIdentity } from './identity';
@@ -39,6 +40,7 @@ const STATUS_POLL_MS = 2000;
 
 type Page = 'home' | 'settings' | 'permissions' | 'news' | 'help';
 
+captureErrors();
 const config = await window.api.getConfig();
 const isMac = config.platform === 'darwin';
 const video = $<HTMLVideoElement>('remote-video');
@@ -66,7 +68,10 @@ function showPage(page: Page) {
   for (const item of document.querySelectorAll<HTMLElement>('.nav-item')) {
     item.classList.toggle('active', item.dataset.nav === page);
   }
-  if (page === 'settings') fillSettingsForm();
+  if (page === 'settings') {
+    fillSettingsForm();
+    void renderLog();
+  }
   if (page === 'permissions') void refreshPermissions();
   if (page === 'help') renderHelp($('help-content'));
 }
@@ -156,7 +161,7 @@ const host = new Host(config.platform, {
     showSessionPanel(session);
     if (error === 'capture') {
       showPage('home');
-      setStatus(t('msg.hostCapture'), true);
+      setStatus(t('msg.hostCapture'), true, true);
     }
   },
 });
@@ -246,7 +251,8 @@ const viewer = new Viewer(config.platform, {
     // means it is offline or has no trusted devices any more.
     const shown = viewerTrusted && error === 'wrongPassword' ? 'untrusted' : error;
     const message = viewerTrusted && shown === 'notFound' ? 'msg.trustedNotFound' : shown && VIEWER_ERRORS[shown];
-    setStatus(message ? t(message) : '', Boolean(shown && shown !== 'partnerLeft'));
+    const failed = Boolean(shown && shown !== 'partnerLeft');
+    setStatus(message ? t(message) : '', failed, failed);
     viewerTrusted = false;
   },
   onPaired: async (id, secret, hostName) => {
@@ -264,11 +270,61 @@ const viewer = new Viewer(config.platform, {
   },
 });
 
-function setStatus(text: string, isError = false) {
+function setStatus(text: string, isError = false, details = false) {
   const el = $('connect-status');
   el.textContent = text;
   el.classList.toggle('error', isError);
+  // Connection errors link to the log, where the exact reason is written.
+  if (isError && details) {
+    const details = document.createElement('button');
+    details.type = 'button';
+    details.className = 'status-details';
+    details.textContent = t('log.details');
+    details.addEventListener('click', () => void openLog());
+    el.append(details);
+  }
 }
+
+// Diagnostics log
+
+const LEVEL_CLASS: Record<string, string> = { WARN: 'log-warn', ERROR: 'log-error' };
+
+async function renderLog() {
+  const view = $('log-view');
+  const text = await window.api.readLog();
+  view.replaceChildren(
+    ...(text
+      ? text.split('\n').map((line) => {
+          const row = document.createElement('div');
+          row.textContent = line;
+          const level = /^\S+ \S+ (WARN|ERROR)\b/.exec(line)?.[1];
+          if (level) row.className = LEVEL_CLASS[level];
+          return row;
+        })
+      : [Object.assign(document.createElement('div'), { className: 'log-empty', textContent: t('log.empty') })]),
+  );
+  view.scrollTop = view.scrollHeight;
+}
+
+async function openLog() {
+  showPage('settings');
+  await renderLog();
+  $('diagnostics').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+$('log-refresh').addEventListener('click', () => void renderLog());
+$('log-reveal').addEventListener('click', () => window.api.revealLog());
+$('log-clear').addEventListener('click', () => {
+  window.api.clearLog();
+  void renderLog();
+});
+$('log-copy').addEventListener('click', async () => {
+  // Version and system first, so a pasted log is useful on its own.
+  const header = `Remote Desk ${config.version} · ${config.platform} · ${navigator.userAgent.match(/\(([^)]+)\)/)?.[1] ?? ''}`;
+  window.api.copyText(`${header}\n${await window.api.readLog()}`);
+  $('log-copy').textContent = t('action.copied');
+  setTimeout(() => ($('log-copy').textContent = t('log.copy')), 1500);
+});
 
 function setViewerBusy(busy: boolean) {
   viewerBusy = busy;
@@ -447,6 +503,7 @@ $('trusted-reset').addEventListener('click', () => {
     return;
   }
   resetTrust();
+  logInfo('host', 'all trusted devices removed, room key replaced');
   void host.restartTrustedRoom();
   renderTrusted();
 });
@@ -486,6 +543,7 @@ function renderTrusted() {
       remove.textContent = t('recent.remove');
       remove.addEventListener('click', () => {
         removeTrusted(device.fingerprint);
+        logInfo('host', 'trusted device removed');
         host.syncTrustedRoom();
         renderTrusted();
       });
@@ -539,6 +597,7 @@ $('settings-form').addEventListener('submit', (e) => {
     next.turnCredential !== settings.turnCredential;
   settings = next;
   saveSettings(settings);
+  logInfo('settings', `saved (${settings.serverUrl ? 'own server' : 'public network'}${settings.turnUrl ? ', TURN set' : ''}, language ${settings.language}, background ${settings.runInBackground ? 'on' : 'off'})`);
   applyLanguage();
   renderNetwork();
   if (networkChanged && !host.active) restartHost();

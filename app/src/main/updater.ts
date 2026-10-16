@@ -1,6 +1,7 @@
 import { app, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import type { UpdateState } from '../preload/api';
+import { log } from './log';
 import { repoUrl } from './repo';
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -14,7 +15,12 @@ let state: UpdateState = { status: app.isPackaged ? 'idle' : 'unsupported', canI
 let notify: (state: UpdateState) => void = () => {};
 
 function setState(next: Partial<UpdateState>) {
+  const previous = state;
   state = { ...state, ...next };
+  if (state.status !== previous.status || state.error !== previous.error) {
+    const detail = [state.version && `version ${state.version}`, state.error].filter(Boolean).join(', ');
+    log(state.status === 'error' || state.error ? 'warn' : 'info', 'update', `${state.status}${detail ? ` (${detail})` : ''}`);
+  }
   notify(state);
 }
 

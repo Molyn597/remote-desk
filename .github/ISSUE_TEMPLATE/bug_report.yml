@@ -43,3 +43,11 @@ body:
         - The computer being controlled
         - The computer controlling the other one
         - Both / not sure
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (optional)
+      description: |
+        In the app open Settings → Diagnostics and click Copy, then paste it here.
+        Passwords and keys are never in the log, and partner IDs are shortened.
+      render: text

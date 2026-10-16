@@ -3,6 +3,13 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.7] - 2026-10-16
+
+### Added
+
+- Diagnostics log in Settings: connections and their route (direct or relay), why a connection failed, and errors with screen capture, permissions, updates and file transfers. Copy it into a bug report; passwords, keys and clipboard contents are never logged and partner IDs are shortened.
+- A Details link next to error messages opens the log.
+
 ## [0.1.6] - 2026-10-16
 
 ### Added
