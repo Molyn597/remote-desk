@@ -48,6 +48,11 @@ export type Pairing = { secret: string };
 // Host -> viewer: the answer; an accepted request is followed by the room key ('pair').
 export type FavoriteRequest = { add: true };
 export type FavoriteAnswer = { accepted: boolean };
+
+// Viewer -> host: power actions on the controlled computer (only while control is allowed).
+export type PowerAction = 'lock' | 'sleep' | 'restart' | 'shutdown';
+export const POWER_ACTIONS: PowerAction[] = ['lock', 'sleep', 'restart', 'shutdown'];
+export type PowerRequest = { action: PowerAction };
 export const isTrustSecret = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{43}$/.test(v);
 
 // Shared clipboard (text only), sent both ways while remote control is allowed.
@@ -71,7 +76,8 @@ export type InputEvent =
   | { t: 'hello'; platform: string }
   | { t: 'move'; x: number; y: number }
   | { t: 'button'; button: MouseButton; down: boolean }
-  | { t: 'wheel'; dx: number; dy: number }
+  // `zoom`: Ctrl+scroll on the host (pinch-to-zoom on the viewer's trackpad).
+  | { t: 'wheel'; dx: number; dy: number; zoom?: boolean }
   | { t: 'text'; text: string }
   | { t: 'key'; key: string; modifiers: string[] }
   // Shortcut chosen from the toolbar, already in the host's terms (no Cmd/Ctrl swap).

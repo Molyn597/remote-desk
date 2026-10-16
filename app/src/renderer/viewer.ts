@@ -17,6 +17,7 @@ import {
   type Hello,
   type InputEvent,
   type Pairing,
+  type PowerRequest,
   type Proof,
   type SessionStatus,
   isTrustSecret,
@@ -32,8 +33,11 @@ const FIND_TIMEOUT_MS = 30_000;
 // Files from the host are accepted only for a while after we asked for them.
 const DOWNLOAD_WINDOW_MS = 10 * 60_000;
 const ACCEPT_TIMEOUT_MS = 60_000;
+// A connection that stays 'disconnected' this long counts as lost (the network dropped).
+const DISCONNECT_GRACE_MS = 4000;
 
-export type ViewerError = AnswerReason | 'wrongPassword' | 'notFound' | 'noResponse' | 'partnerLeft';
+// 'partnerLeft': the connection dropped; 'closed': the host ended the session on purpose.
+export type ViewerError = AnswerReason | 'wrongPassword' | 'notFound' | 'noResponse' | 'partnerLeft' | 'closed';
 export type ViewerStatus = 'searching' | 'waiting';
 
 export interface ViewerSession {
@@ -45,6 +49,8 @@ export interface ViewerSession {
   // The host's monitors and which one is shown; sent again after every switch.
   layout?: DisplayLayout;
   onLayout?: () => void;
+  // Lock / sleep / restart / shut down the remote computer.
+  power(action: PowerRequest['action']): void;
   // Ask the host to add it to this device's favorites; it answers after someone approves.
   requestFavorite(): void;
   onFavorite?: (result: 'added' | 'declined' | 'saveFailed') => void;
@@ -124,6 +130,7 @@ export class Viewer {
     password: string,
     me: { name: string; id: string; identity?: Identity },
     trusted = false,
+    findTimeoutMs = FIND_TIMEOUT_MS,
   ) {
     logInfo('viewer', `connecting to ${partnerId}${trusted ? ' as a trusted device' : ''} (${settings.serverUrl ? 'own server' : 'public network'})`);
     const room = join(settings, trusted ? trustedRoom(partnerId) : partnerId, password, {
@@ -134,7 +141,7 @@ export class Viewer {
     });
     this.room = room;
     this.events.onStatus('searching');
-    this.startTimer(FIND_TIMEOUT_MS, 'notFound');
+    this.startTimer(findTimeoutMs, 'notFound');
 
     const hello = room.makeAction<Hello>('hello');
     const answer = room.makeAction<Answer>('answer');
@@ -154,6 +161,7 @@ export class Viewer {
     const pair = room.makeAction<Pairing>('pair');
     const favorite = room.makeAction<FavoriteRequest>('favorite');
     const favoriteAnswer = room.makeAction<FavoriteAnswer>('favans');
+    const power = room.makeAction<PowerRequest>('power');
     let acceptFilesUntil = 0;
 
     pair.onMessage = (data, { peerId }) => {
@@ -250,7 +258,15 @@ export class Viewer {
       clearTimeout(this.timer);
       this.connected = true;
       logInfo('viewer', `allowed (${data.control !== false ? 'control' : 'view only'})`);
-      watchConnection('viewer', this.room?.getPeers()[peerId]);
+      const pc = this.room?.getPeers()[peerId];
+      watchConnection('viewer', pc);
+      // Notice a dead connection quickly instead of waiting for it to time out.
+      let lostTimer = 0;
+      pc?.addEventListener('connectionstatechange', () => {
+        clearTimeout(lostTimer);
+        if (pc.connectionState === 'failed') this.end('partnerLeft');
+        if (pc.connectionState === 'disconnected') lostTimer = window.setTimeout(() => this.end('partnerLeft'), DISCONNECT_GRACE_MS);
+      });
       session = {
         hostPlatform: this.hostPlatform,
         hostName: this.hostName,
@@ -260,6 +276,10 @@ export class Viewer {
         screen: validScreen(data.screen),
         sendInput: (ev) => void input.send(ev, { target: peerId }),
         sendControl: (c) => void control.send(c, { target: peerId }),
+        power: (action) => {
+          logInfo('viewer', `power action sent: ${action}`);
+          void power.send({ action }, { target: peerId });
+        },
         requestFavorite: () => {
           logInfo('viewer', 'asking the host to add it to favorites');
           void favorite.send({ add: true }, { target: peerId });
@@ -318,7 +338,7 @@ export class Viewer {
       this.events.onStream(stream);
     };
     bye.onMessage = (_, { peerId }) => {
-      if (peerId === this.hostPeer) this.end('partnerLeft');
+      if (peerId === this.hostPeer) this.end('closed');
     };
     room.onPeerLeave = (peerId) => {
       if (peerId === this.hostPeer) this.end('partnerLeft');

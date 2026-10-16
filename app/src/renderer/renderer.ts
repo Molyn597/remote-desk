@@ -69,16 +69,24 @@ const formatId = (id: string) => id.replace(/(\d{3})(?=\d)/g, '$1 ');
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Panels and cards land one after another.
+// Panels and cards land one after another. They are hidden right away and start moving two frames
+// later, once the page has been laid out and painted, so the first frames don't stutter (Windows).
 function animateIn(elements: Iterable<Element>) {
-  [...elements].forEach((el, i) => {
-    const node = el as HTMLElement;
+  const nodes = [...elements] as HTMLElement[];
+  nodes.forEach((node, i) => {
     node.classList.remove('anim-in');
+    node.classList.add('anim-prep');
     node.style.setProperty('--i', String(i));
-    void node.offsetWidth; // restart the animation
-    node.classList.add('anim-in');
-    node.addEventListener('animationend', () => node.classList.remove('anim-in'), { once: true });
   });
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      for (const node of nodes) {
+        node.classList.remove('anim-prep');
+        node.classList.add('anim-in');
+        node.addEventListener('animationend', () => node.classList.remove('anim-in'), { once: true });
+      }
+    }),
+  );
 }
 
 const pageParts = (page: Element) =>
@@ -210,6 +218,9 @@ const host = new Host(config.platform, {
     ).choice,
   pickerTitle: () => t('files.pickTitle'),
   privacyMessage: (visitor) => t('privacy.overlay', { who: describeVisitor(visitor) }),
+  onPowerAction: (visitor, action) => {
+    new Notification(t('power.hostNotice', { who: describeVisitor(visitor), action: t(`power.${action}` as MessageKey).toLowerCase() }));
+  },
   onFileSent: (name) => {
     new Notification(t('files.sentTitle'), { body: t('files.sentBody', { name }) });
   },
@@ -295,6 +306,7 @@ const VIEWER_ERRORS: Record<ViewerError, MessageKey> = {
   busy: 'msg.busy',
   capture: 'msg.capture',
   partnerLeft: 'msg.partnerLeft',
+  closed: 'msg.partnerLeft',
   untrusted: 'msg.untrusted',
 };
 
@@ -307,6 +319,10 @@ let viewerPartnerId = '';
 const viewer = new Viewer(config.platform, {
   onStatus: (status) => setStatus(t(status === 'searching' ? 'msg.searching' : 'msg.waiting')),
   onConnected: (session) => {
+    if (reconnecting) logInfo('viewer', 'reconnected');
+    reconnecting = false;
+    userEnded = false;
+    $('reconnect').hidden = true;
     addRecent(viewerPartnerId);
     renderRecent();
     if (viewerTrusted) {
@@ -324,7 +340,14 @@ const viewer = new Viewer(config.platform, {
     detachToolbar = attachToolbar(session, {
       partnerId,
       localIsMac: isMac,
-      onDisconnect: () => viewer.disconnect(),
+      onDisconnect: () => {
+        userEnded = true;
+        viewer.disconnect();
+      },
+      onPower: (action) => {
+        if (action === 'restart') restartExpectedUntil = Date.now() + RESTART_RECONNECT_MS;
+        else if (action !== 'lock') userEnded = true; // asleep or off: nothing to reconnect to
+      },
       isFavorite: () => loadMyDevices().some((d) => d.id === partnerId),
       removeFavorite: () => {
         removeMyDevice(partnerId);
@@ -347,25 +370,27 @@ const viewer = new Viewer(config.platform, {
     detachToolbar?.();
     detachToolbar = undefined;
     viewerSession = undefined;
-    sendBackground();
     video.srcObject = null;
-    $('viewer').hidden = true;
-    applyTheme();
-    window.api.setSessionState('idle');
-    setViewerBusy(false);
-    // In the trusted room a wrong key means this computer no longer trusts us; nobody there
-    // means it is offline or has no trusted devices any more.
-    const shown = viewerTrusted && error === 'wrongPassword' ? 'untrusted' : error;
-    const message = viewerTrusted && shown === 'notFound' ? 'msg.trustedNotFound' : shown && VIEWER_ERRORS[shown];
-    const failed = Boolean(shown && shown !== 'partnerLeft');
-    // The trusted way failed: offer the password field right away.
-    if (viewerTrusted && failed) {
-      $<HTMLInputElement>('partner-id').value = formatId(viewerPartnerId);
-      usePassword = true;
-      syncTrustedNote();
+    // A dropped connection (not one either side ended) is retried for a while.
+    const retry =
+      !userEnded &&
+      lastTarget &&
+      (error === 'partnerLeft' || (reconnecting && (error === 'notFound' || error === 'noResponse' || error === 'busy')));
+    if (retry) {
+      const first = !reconnecting;
+      if (first) {
+        reconnecting = true;
+        reconnectUntil = Date.now() + (Date.now() < restartExpectedUntil ? RESTART_RECONNECT_MS : RECONNECT_MS);
+        logInfo('viewer', 'connection lost, reconnecting');
+      }
+      if (Date.now() < reconnectUntil) {
+        $('reconnect').hidden = false;
+        $('reconnect-text').textContent = t(Date.now() < restartExpectedUntil ? 'reconnect.restart' : 'reconnect.trying');
+        reconnectTimer = window.setTimeout(reconnectNow, first ? RECONNECT_FIRST_MS : RECONNECT_GAP_MS);
+        return;
+      }
     }
-    setStatus(message ? t(message) : '', failed, failed);
-    viewerTrusted = false;
+    finishViewer(error);
   },
   onPaired: async (id, secret, hostName) => {
     const encrypted = await sealSecret(secret).catch((err) => {
@@ -387,6 +412,58 @@ const viewer = new Viewer(config.platform, {
     return true;
   },
 });
+
+// Reconnecting after the connection dropped: same computer, same password or favorite key.
+const RECONNECT_MS = 60_000;
+const RESTART_RECONNECT_MS = 180_000; // after we restarted the remote computer
+const RECONNECT_GAP_MS = 3000;
+const RECONNECT_FIRST_MS = 4000; // give both sides a moment to forget the dead connection
+const RECONNECT_FIND_MS = 12_000;
+let lastTarget: { id: string; secret: string; trusted: boolean } | undefined;
+let reconnecting = false;
+let reconnectUntil = 0;
+let reconnectTimer = 0;
+let restartExpectedUntil = 0;
+let userEnded = false;
+
+function reconnectNow() {
+  if (!lastTarget || userEnded) return;
+  viewerPartnerId = lastTarget.id;
+  viewerTrusted = lastTarget.trusted;
+  viewer.connect(settings, lastTarget.id, lastTarget.secret, { name: settings.displayName, id: hostId, identity }, lastTarget.trusted, RECONNECT_FIND_MS);
+}
+
+$('reconnect-cancel').addEventListener('click', () => {
+  userEnded = true;
+  clearTimeout(reconnectTimer);
+  viewer.disconnect();
+  finishViewer();
+});
+
+// Ends the viewer session in the UI and shows why, if it failed.
+function finishViewer(error?: ViewerError) {
+  reconnecting = false;
+  clearTimeout(reconnectTimer);
+  $('reconnect').hidden = true;
+  sendBackground();
+  $('viewer').hidden = true;
+  applyTheme();
+  window.api.setSessionState('idle');
+  setViewerBusy(false);
+  // In the trusted room a wrong key means this computer no longer trusts us; nobody there
+  // means it is offline or has no trusted devices any more.
+  const shown = viewerTrusted && error === 'wrongPassword' ? 'untrusted' : error;
+  const message = viewerTrusted && shown === 'notFound' ? 'msg.trustedNotFound' : shown && VIEWER_ERRORS[shown];
+  const failed = Boolean(shown && shown !== 'partnerLeft' && shown !== 'closed');
+  // The trusted way failed: offer the password field right away.
+  if (viewerTrusted && failed) {
+    $<HTMLInputElement>('partner-id').value = formatId(viewerPartnerId);
+    usePassword = true;
+    syncTrustedNote();
+  }
+  setStatus(message ? t(message) : '', failed, failed);
+  viewerTrusted = false;
+}
 
 function setStatus(text: string, isError = false, details = false) {
   const el = $('connect-status');
@@ -462,9 +539,14 @@ $('connect-form').addEventListener('submit', (e) => {
   if (known) return void connectTrusted(known);
   viewerPartnerId = id;
   setViewerBusy(true);
+  lastTarget = { id, secret: pw, trusted: false };
+  userEnded = false;
   viewer.connect(settings, id, pw, { name: settings.displayName, id: hostId, identity });
 });
-$('cancel-button').addEventListener('click', () => viewer.disconnect());
+$('cancel-button').addEventListener('click', () => {
+  userEnded = true;
+  viewer.disconnect();
+});
 
 // Partner ID typed as "123 456 789"; pasted text with spaces or dashes is cleaned up too.
 const idInput = $<HTMLInputElement>('partner-id');
@@ -522,6 +604,8 @@ async function connectTrusted(device: MyDevice) {
   viewerPartnerId = device.id;
   viewerTrusted = true;
   setViewerBusy(true);
+  lastTarget = { id: device.id, secret, trusted: true };
+  userEnded = false;
   viewer.connect(settings, device.id, secret, { name: settings.displayName, id: hostId, identity }, true);
 }
 

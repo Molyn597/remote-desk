@@ -2,6 +2,8 @@ name: Release
 
 # Push a tag like v0.2.0 (matching app/package.json) to build and publish a release.
 # Installed apps pick up the new version once the release is published.
+# A tag with a suffix (v0.2.0-beta.1) becomes a pre-release: installed apps on a regular
+# version never update to it; you install it by hand to test, and it then follows newer betas.
 
 on:
   push:
@@ -46,7 +48,10 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" --draft --notes-file notes.md --title "Remote Desk $GITHUB_REF_NAME"
+        run: |
+          PRE=""
+          case "$GITHUB_REF_NAME" in *-*) PRE="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" --draft $PRE --notes-file notes.md --title "Remote Desk $GITHUB_REF_NAME"
 
   build:
     needs: draft
@@ -106,4 +111,8 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+        run: |
+          case "$GITHUB_REF_NAME" in
+            *-*) gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease --latest=false ;;
+            *) gh release edit "$GITHUB_REF_NAME" --draft=false --latest ;;
+          esac

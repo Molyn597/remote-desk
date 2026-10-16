@@ -50,6 +50,27 @@ https://github.com/user-attachments/assets/6e3cd5cc-f3c0-485e-bfc9-ae2eecc6329c
 - Diagnostics log with IDs and keys redacted, ready to paste into a bug report.
 - Automatic updates on Windows and macOS, Czech and English, light and dark theme.
 
+## Why Remote Desk
+
+Most remote desktop apps can see the screen, move files and share the clipboard. Remote Desk
+differs in how it does it:
+
+- **Built against scammers.** Scammers love blacking out a victim's screen. Here the privacy screen
+  only works for favorites the owner approved, only when the owner allows it, the session bar with
+  **Disconnect** always stays on top, and moving the mouse at the computer lifts it at once.
+  A favorite can't be approved from the remote side (input is paused while the question is open),
+  unanswered prompts deny themselves after a minute, and every connection is logged with a notification.
+- **No account, no tracking, no limits.** Picture and input go straight between the computers; nothing
+  is stored by a company. No "commercial use detected" lock-outs. Open source under MIT.
+- **Sharpness first.** It keeps 1920 px and drops frames on a slow network, so text stays readable,
+  and has a data-saving mode for mobile data.
+- **Mac-friendly.** Permissions survive updates, and a **Fix** button repairs stale macOS permissions.
+- **Fits into your system.** `remotedesk://` links for Shortcuts, Siri and Raycast; favorites in the
+  menu bar, tray and Dock.
+
+Where others are ahead: years of testing, phone and Linux apps, the Windows sign-in screen and UAC
+prompts, signed installers, and their own relay servers for very strict networks.
+
 ## Install
 
 Download the installer for your system from [Releases](../../releases):

@@ -18,7 +18,9 @@ import {
   type Hello,
   type InputEvent,
   type Pairing,
+  type PowerRequest,
   type Proof,
+  POWER_ACTIONS,
   type Quality,
   type SessionStatus,
   trustedRoom,
@@ -71,6 +73,8 @@ export interface HostEvents {
   pickerTitle(): string;
   // Shown on this computer's blacked-out monitors.
   privacyMessage(visitor: Visitor): string;
+  // The viewer locks, sleeps, restarts or shuts down this computer.
+  onPowerAction(visitor: Visitor, action: PowerRequest['action']): void;
 }
 
 const cleanName = (value: unknown) =>
@@ -130,6 +134,8 @@ export class Host {
   // Privacy screen: allowed by the owner in Settings, for favorites only, Windows only.
   private privacyAllowed = false;
   private privacy = false;
+  // After a dropped connection the same device (proven by its key) may come straight back.
+  private rejoin?: { key: string; canControl: boolean; trusted: boolean; until: number };
 
   constructor(
     private readonly platform: string,
@@ -199,6 +205,7 @@ export class Host {
     const pair = room.makeAction<Pairing>('pair');
     const favorite = room.makeAction<FavoriteRequest>('favorite');
     const favoriteAnswer = room.makeAction<FavoriteAnswer>('favans');
+    const power = room.makeAction<PowerRequest>('power');
 
     const link: Link = {
       room,
@@ -273,6 +280,14 @@ export class Host {
     bye.onMessage = (_, { peerId }) => this.peerGone(peerId, link);
     input.onMessage = (ev, { peerId }) => {
       if (this.controlAllowed(peerId, link) && ev && typeof ev === 'object') window.api.sendInput(ev);
+    };
+    power.onMessage = (data, { peerId }) => {
+      const action = data?.action;
+      const s = this.session;
+      if (!s || !this.controlAllowed(peerId, link) || !POWER_ACTIONS.includes(action)) return;
+      logInfo('host', `power action from ${s.id || 'viewer'}: ${action}`);
+      this.events.onPowerAction(s, action);
+      window.api.powerAction(action);
     };
     favorite.onMessage = (_, { peerId }) => {
       if (inSession(peerId)) void this.handleFavorite();
@@ -426,6 +441,15 @@ export class Host {
       const known = { ...visitor, name: visitor.name || trusted.name };
       return this.startSession(peer, viewerPlatform, known, trusted.control, true);
     }
+    // Coming back after a dropped connection: same device key, within two minutes, no prompt.
+    const back = this.rejoin;
+    if (back && visitor.key === back.key && Date.now() < back.until && (await this.verifyPeer(peer, visitor.key))) {
+      if (!this.isPending(peer)) return;
+      this.pending = undefined;
+      this.rejoin = undefined;
+      logInfo('host', 'device reconnected after a dropped connection, no prompt');
+      return this.startSession(peer, viewerPlatform, visitor, back.canControl, back.trusted);
+    }
     // Nobody is asked in the trusted room: unknown or removed devices are simply turned away.
     if (link.trustedOnly) {
       logWarn('host', 'refused in trusted room: device is not trusted');
@@ -578,6 +602,7 @@ export class Host {
     if (this.privacy) window.api.setPrivacyScreen(false, '');
     this.privacy = false;
     this.session = undefined;
+    this.rejoin = error === 'partnerLeft' && s.key ? { key: s.key, canControl: s.canControl, trusted: s.trusted, until: Date.now() + 120_000 } : undefined;
     logInfo('host', `session ended (${notifyPeer ? 'disconnected here' : error ?? 'stopped'}, ${Math.round((Date.now() - s.startedAt) / 1000)} s)`);
     if (notifyPeer) s.link.send.bye(s.peerId);
     if (this.stream) {

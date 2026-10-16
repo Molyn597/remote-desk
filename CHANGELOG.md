@@ -3,6 +3,25 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.1] - 2026-10-17
+
+Test version of 0.2.0, part 1. Installed by hand; regular versions don't update to it.
+
+### Added
+
+- Trackpad gestures from a Mac: pinch to zoom in the remote app, a quick two-finger flick for Back / Forward, and (with three-finger page swipes turned on in macOS) three-finger swipes for the window overview, the desktop and switching desktops.
+- Smart zoom: magnify the remote screen 1.5× or 2× and the view follows your mouse, so text stays readable on a small display.
+- Power menu in the session toolbar: lock, sleep, restart or shut down the remote computer. Restart and shut down ask for a second click, and the computer shows a notification.
+- Automatic reconnect: when the connection drops, Remote Desk reconnects on its own, and after a remote restart it waits for the computer to come back. The controlled computer lets the same device back in without asking again for two minutes.
+
+### Changed
+
+- Ending a session on purpose (either side) no longer triggers a reconnect.
+
+### Fixed
+
+- Smoother animations, especially on Windows: panels start moving only once the page is drawn, and each moves on the graphics card instead of being redrawn.
+
 ## [0.1.18] - 2026-10-17
 
 ### Changed

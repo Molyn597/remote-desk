@@ -3,12 +3,20 @@ import { keyToInput } from './keymap';
 
 const BUTTONS: Record<number, MouseButton> = { 0: 'left', 1: 'middle', 2: 'right' };
 const LINE_HEIGHT = 40;
+// Trackpad gestures: a pinch arrives as ctrl+wheel; a fast sideways two-finger flick means back/forward.
+const PINCH_STEP = 14;
+const FLICK_DISTANCE = 260;
+const FLICK_TIME_MS = 380;
+const GESTURE_GAP_MS = 220;
+
+const combo = (key: string, ...modifiers: string[]): InputEvent => ({ t: 'combo', key, modifiers });
 
 // Captures mouse and keyboard over the remote video and returns a detach function.
 export function attachInputCapture(
   video: HTMLVideoElement,
   send: (ev: InputEvent) => void,
   isMac: boolean,
+  hostIsMac = false,
 ): () => void {
   let pending: { x: number; y: number } | null = null;
   let frame = 0;
@@ -60,9 +68,36 @@ export function attachInputCapture(
     send({ t: 'button', button, down });
   };
 
+  let pinch = 0;
+  let gesture = { start: 0, last: 0, x: 0, y: 0, fired: false };
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     const factor = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? LINE_HEIGHT : 1;
+    // Pinch (or Ctrl+scroll): zoom in the remote app, in steps.
+    if (e.ctrlKey) {
+      pinch += -e.deltaY * factor;
+      while (Math.abs(pinch) >= PINCH_STEP) {
+        const zoomIn = pinch > 0;
+        pinch -= Math.sign(pinch) * PINCH_STEP;
+        if (hostIsMac) send(combo(zoomIn ? '=' : '-', 'command'));
+        else send({ t: 'wheel', dx: 0, dy: zoomIn ? 120 : -120, zoom: true });
+      }
+      return;
+    }
+    // A fast, mostly sideways two-finger flick is Back / Forward, once per gesture.
+    const now = performance.now();
+    if (now - gesture.last > GESTURE_GAP_MS) gesture = { start: now, last: now, x: 0, y: 0, fired: false };
+    gesture.last = now;
+    gesture.x += e.deltaX * factor;
+    gesture.y += e.deltaY * factor;
+    if (!gesture.fired && now - gesture.start < FLICK_TIME_MS && Math.abs(gesture.x) > FLICK_DISTANCE && Math.abs(gesture.x) > Math.abs(gesture.y) * 3) {
+      gesture.fired = true;
+      const back = gesture.x < 0; // fingers moved right
+      if (hostIsMac) send(combo(back ? '[' : ']', 'command'));
+      else send(combo(back ? 'left' : 'right', 'alt'));
+      return;
+    }
+    if (gesture.fired && Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
     send({ t: 'wheel', dx: -e.deltaX * factor, dy: -e.deltaY * factor });
   };
 

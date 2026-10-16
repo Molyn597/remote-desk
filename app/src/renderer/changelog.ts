@@ -25,7 +25,7 @@ export function parseChangelog(markdown: string): Release[] {
   const releases: Release[] = [];
   let current: Release | undefined;
   for (const line of markdown.split(/\r?\n/)) {
-    const heading = /^##\s+\[?(\d+\.\d+\.\d+)\]?(?:\s*[-–]\s*(.+))?/.exec(line);
+    const heading = /^##\s+\[?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\]?(?:\s*[-–]\s*(.+))?/.exec(line);
     if (heading) {
       current = { version: heading[1], date: plain(heading[2] ?? ''), groups: [] };
       releases.push(current);

@@ -1,4 +1,4 @@
-import { ALL_DISPLAYS, type InputEvent, type Quality } from '../../../shared/protocol';
+import { ALL_DISPLAYS, type InputEvent, type PowerAction, type Quality } from '../../../shared/protocol';
 import { t, type MessageKey } from './i18n';
 import type { ViewerSession } from './viewer';
 import { attachInputCapture } from './viewer-input';
@@ -35,6 +35,10 @@ const WINDOWS_SHORTCUTS: Shortcut[] = [
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
+// Set while a session toolbar is attached; the main window forwards macOS swipes here.
+let swipeHandler: ((direction: string) => void) | undefined;
+window.api.onSwipe((direction) => swipeHandler?.(direction));
+
 export interface ToolbarOptions {
   partnerId: string;
   localIsMac: boolean;
@@ -47,6 +51,8 @@ export interface ToolbarOptions {
   // The remote computer's sound: on or muted here; the choice is kept for next time.
   audio: boolean;
   onAudioChange(enabled: boolean): void;
+  // A power action was sent (restart/shutdown: the app keeps trying to reconnect for a while).
+  onPower?(action: PowerAction): void;
 }
 
 const FAVORITE_TIMEOUT_MS = 75_000;
@@ -77,7 +83,7 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   let viewOnly = false;
   const syncInput = () => {
     const enabled = !viewOnly && session.canControl;
-    if (enabled && !detachInput) detachInput = attachInputCapture(video, session.sendInput, options.localIsMac);
+    if (enabled && !detachInput) detachInput = attachInputCapture(video, session.sendInput, options.localIsMac, session.hostPlatform === 'darwin');
     if (!enabled && detachInput) {
       detachInput();
       detachInput = undefined;
@@ -121,6 +127,10 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   };
   onClick('tool-scale', () => {
     original = !original;
+    if (original && zoomIndex > 0) {
+      zoomIndex = 0;
+      applyZoom();
+    }
     applyScale();
   });
   listen(video, 'resize', applyScale);
@@ -147,6 +157,79 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   listen(stage, 'mouseleave', () => (pan = { x: 0, y: 0 }));
   cleanups.push(() => cancelAnimationFrame(panFrame));
 
+  // Three-finger swipes become the host's own gestures: overview, desktop, switch desktops.
+  const SWIPES: Record<string, { mac: InputEvent; win: InputEvent }> = {
+    up: { mac: combo('up', 'control'), win: combo('tab', 'command') },
+    down: { mac: combo('down', 'control'), win: combo('d', 'command') },
+    left: { mac: combo('right', 'control'), win: combo('right', 'control', 'command') },
+    right: { mac: combo('left', 'control'), win: combo('left', 'control', 'command') },
+  };
+  swipeHandler = (direction) => {
+    const action = SWIPES[direction];
+    if (action && detachInput) session.sendInput(session.hostPlatform === 'darwin' ? action.mac : action.win);
+  };
+  cleanups.push(() => (swipeHandler = undefined));
+
+  // Smart zoom: magnify the remote screen and let the view follow your mouse, so text stays readable
+  // on a small display. Levels: off, 1.5×, 2×.
+  const ZOOMS = [1, 1.5, 2];
+  let zoomIndex = 0;
+  const target = { x: 0.5, y: 0.5 };
+  let zoomFrame = 0;
+  const followMouse = () => {
+    zoomFrame = 0;
+    const maxX = stage.scrollWidth - stage.clientWidth;
+    const maxY = stage.scrollHeight - stage.clientHeight;
+    const dx = target.x * maxX - stage.scrollLeft;
+    const dy = target.y * maxY - stage.scrollTop;
+    stage.scrollLeft += dx * 0.18;
+    stage.scrollTop += dy * 0.18;
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) zoomFrame = requestAnimationFrame(followMouse);
+  };
+  const applyZoom = () => {
+    const zoom = ZOOMS[zoomIndex];
+    $('tool-zoom').classList.toggle('active', zoom > 1);
+    $('zoom-level').textContent = zoom > 1 ? `${zoom}×` : '';
+    $('tool-zoom').title = t(zoom > 1 ? 'toolbar.zoomOff' : 'toolbar.zoom');
+    if (zoom === 1) {
+      if (!original) {
+        video.style.width = video.style.height = video.style.marginTop = '';
+      }
+      return;
+    }
+    const vw = video.videoWidth || 16;
+    const vh = video.videoHeight || 9;
+    const fit = Math.min(stage.clientWidth / vw, stage.clientHeight / vh);
+    const w = vw * fit * zoom;
+    const h = vh * fit * zoom;
+    video.style.width = `${w}px`;
+    video.style.height = `${h}px`;
+    video.style.marginTop = `${Math.max(0, (stage.clientHeight - h) / 2)}px`;
+    if (!zoomFrame) zoomFrame = requestAnimationFrame(followMouse);
+  };
+  onClick('tool-zoom', () => {
+    zoomIndex = (zoomIndex + 1) % ZOOMS.length;
+    if (zoomIndex > 0 && original) {
+      original = false;
+      applyScale();
+    }
+    applyZoom();
+  });
+  listen(stage, 'mousemove', (e: MouseEvent) => {
+    if (zoomIndex === 0) return;
+    const rect = stage.getBoundingClientRect();
+    target.x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    target.y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+    if (!zoomFrame) zoomFrame = requestAnimationFrame(followMouse);
+  });
+  listen(window, 'resize', () => zoomIndex > 0 && applyZoom());
+  listen(video, 'resize', () => zoomIndex > 0 && applyZoom());
+  cleanups.push(() => {
+    cancelAnimationFrame(zoomFrame);
+    zoomIndex = 0;
+    applyZoom();
+  });
+
   // Full screen.
   onClick('tool-fullscreen', () => {
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -160,7 +243,7 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   });
 
   // Menus.
-  const menus = ['menu-monitor', 'menu-quality', 'menu-keys'];
+  const menus = ['menu-monitor', 'menu-quality', 'menu-keys', 'menu-power'];
   const closeMenus = () => menus.forEach((id) => ($(id).hidden = true));
   const toggleMenu = (id: string) => {
     const open = $(id).hidden;
@@ -170,6 +253,7 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   listen($('tool-monitor'), 'click', () => toggleMenu('menu-monitor'));
   listen($('tool-quality'), 'click', () => toggleMenu('menu-quality'));
   listen($('tool-keys'), 'click', () => toggleMenu('menu-keys'));
+  listen($('tool-power'), 'click', () => toggleMenu('menu-power'));
   listen(document, 'mousedown', (e: MouseEvent) => {
     if (!(e.target as Element).closest('.tool-menu')) closeMenus();
   });
@@ -295,6 +379,43 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     $('monitor-tools').hidden = true;
     session.onLayout = undefined;
   });
+
+  // Power: lock and sleep right away; restart and shut down ask for a second click.
+  const POWER_LABEL: Record<PowerAction, MessageKey> = {
+    lock: 'power.lock', sleep: 'power.sleep', restart: 'power.restart', shutdown: 'power.shutdown',
+  };
+  let armed: PowerAction | undefined;
+  const resetPowerLabels = () => {
+    armed = undefined;
+    for (const b of document.querySelectorAll<HTMLElement>('[data-power]')) {
+      b.textContent = t(POWER_LABEL[b.dataset.power as PowerAction]);
+      b.classList.remove('danger');
+    }
+  };
+  for (const button of document.querySelectorAll<HTMLElement>('[data-power]')) {
+    listen(button, 'click', () => {
+      const action = button.dataset.power as PowerAction;
+      if ((action === 'restart' || action === 'shutdown') && armed !== action) {
+        resetPowerLabels();
+        armed = action;
+        button.textContent = t(action === 'restart' ? 'power.confirmRestart' : 'power.confirmShutdown');
+        button.classList.add('danger');
+        return;
+      }
+      resetPowerLabels();
+      closeMenus();
+      session.power(action);
+      options.onPower?.(action);
+      showTransfer(t(`power.sent.${action}` as MessageKey), false, 6000);
+    });
+  }
+  listen($('tool-power'), 'click', resetPowerLabels);
+  $('tool-power').hidden = !session.canControl;
+  const powerControl = session.onControlChange;
+  session.onControlChange = (can) => {
+    powerControl?.(can);
+    $('tool-power').hidden = !can;
+  };
 
   // Shortcuts for the host's platform.
   const keysMenu = $('menu-keys');

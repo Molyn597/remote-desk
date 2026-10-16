@@ -16,10 +16,12 @@ const api: Api = {
   clearLog: () => ipcRenderer.send('log-clear'),
   revealLog: () => ipcRenderer.send('log-reveal'),
   setKeepAwake: (enabled) => ipcRenderer.send('keep-awake', enabled),
+  powerAction: (action) => ipcRenderer.send('power-action', action),
   setPrivacyScreen: (enabled, message) => ipcRenderer.send('privacy-screen', enabled, message),
   onPrivacyOff: (handler) => ipcRenderer.on('privacy-off', () => handler()),
   setTrayState: (state) => ipcRenderer.send('tray-state', state),
   onTrayAction: (handler) => ipcRenderer.on('tray-action', (_e, action) => handler(action)),
+  onSwipe: (handler) => ipcRenderer.on('swipe', (_e, direction) => handler(direction)),
   onDeepLink: (handler) => {
     ipcRenderer.on('deep-link', (_e, link) => handler(link));
     return ipcRenderer.invoke('deep-link-ready');

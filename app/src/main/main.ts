@@ -34,6 +34,8 @@ import { clearLog, errorText, log, logFile, logStartup, readLog } from './log';
 import { setKeepAwake, setSessionAwake } from './power';
 import { handleInput, resetInput, setInputView, setLocalActivityHandler, watchLocalMouse } from './input';
 import { privacyOn, setPrivacyScreen } from './privacy';
+import { runPowerAction } from './power-actions';
+import { POWER_ACTIONS, type PowerAction } from '../../../shared/protocol';
 import { watchClipboard, writeClipboard } from './clipboard';
 import { clearOffers, offerFiles, readOfferedFile, saveReceivedFile, wasSaved } from './files';
 import { appId, rawFileUrl, repoUrl } from './repo';
@@ -138,6 +140,8 @@ function createWindow(hidden = false) {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   keepAliveOnClose(win);
+  // Three-finger swipes (when macOS is set to swipe between pages with three fingers).
+  win.on('swipe', (_e, direction) => win?.webContents.send('swipe', direction));
   win.on('closed', () => {
     win = undefined;
     panel?.close();
@@ -472,6 +476,11 @@ app.whenReady().then(async () => {
   });
   ipcMain.on('input-view', (e, view: unknown) => {
     if (sessionState === 'host' && fromMainWindow(e)) setInputView(viewRect(view));
+  });
+  ipcMain.on('power-action', (e, action: unknown) => {
+    if (sessionState !== 'host' || !fromMainWindow(e) || !POWER_ACTIONS.includes(action as PowerAction)) return;
+    // Give the renderer a moment to tell the viewer before the screen locks or the PC goes down.
+    setTimeout(() => runPowerAction(action as PowerAction), 600);
   });
   ipcMain.on('input', (e, ev) => {
     if (sessionState !== 'host' || !fromMainWindow(e)) return;

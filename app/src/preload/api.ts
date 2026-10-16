@@ -94,12 +94,16 @@ export interface Api {
   clearLog(): void;
   revealLog(): void;
   setKeepAwake(enabled: boolean): void;
+  // Host: lock / sleep / restart / shut down this computer (validated in the main process).
+  powerAction(action: string): void;
   // Host: black out this computer's monitors (Windows), and hear when local mouse use lifted it.
   setPrivacyScreen(enabled: boolean, message: string): void;
   onPrivacyOff(handler: () => void): void;
   // Menu bar/tray icon and Dock menu, and whether the app keeps running in the background.
   setTrayState(state: TrayState): void;
   onTrayAction(handler: (action: TrayAction) => void): void;
+  // macOS three-finger swipe in the main window: 'up' | 'down' | 'left' | 'right'.
+  onSwipe(handler: (direction: string) => void): void;
   // remotedesk:// links; returns a link that opened the app before the window was ready.
   onDeepLink(handler: (link: DeepLink) => void): Promise<DeepLink | null>;
   revealFile(path: string): void;

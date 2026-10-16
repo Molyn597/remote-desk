@@ -91,7 +91,9 @@ export function handleInput(ev: InputEvent) {
       else pressed.delete(ev.button);
       return;
     case 'wheel':
+      if (ev.zoom === true) robot.keyToggle('control', 'down');
       robot.scrollMouse(clampScroll(ev.dx), clampScroll(ev.dy));
+      if (ev.zoom === true) robot.keyToggle('control', 'up');
       return;
     case 'text':
       if (typeof ev.text === 'string' && ev.text.length <= 32) robot.typeString(ev.text);
