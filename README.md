@@ -7,10 +7,7 @@ someone control your computer — or control theirs. No account, no server to ru
 
 > Early development. See [SECURITY.md](SECURITY.md) before using it on computers you care about.
 
-<p align="center">
-  <a href="docs/promo/remote-desk-promo.mp4"><img src="docs/promo/remote-desk-promo.gif" width="800" alt="Remote Desk in 20 seconds: favorites, multiple monitors, drag and drop, copy and paste, sound and the privacy screen" /></a>
-  <br /><sub><a href="docs/promo/remote-desk-promo.mp4">Watch with sound (MP4)</a></sub>
-</p>
+https://github.com/user-attachments/assets/6e3cd5cc-f3c0-485e-bfc9-ae2eecc6329c
 
 <p align="center">
   <img src="docs/screenshots/app-home.png" width="800" alt="Remote Desk home screen with your ID and password, the connect form and recent connections" />
@@ -23,14 +20,35 @@ someone control your computer — or control theirs. No account, no server to ru
 
 ## Features
 
-- Control Windows and macOS computers, in both directions.
-- ID and password, or **favorites**: one click, no password, approved once on the other computer.
-- Reach your own computer while you are away: runs in the background and keeps the computer awake.
-- Sharp picture (1920 px at up to 60 fps) with the remote **sound**; several monitors.
-- Shared clipboard and file transfer in both directions.
-- Scam safeguards: an always-on-top session panel, local mouse priority, approvals that the remote
-  side can't click for you.
-- Diagnostics log with IDs and keys redacted, automatic updates, Czech and English.
+**Connecting**
+- Control Windows and macOS computers, in both directions, at home or over the internet and mobile data.
+- ID and password, or **favorites**: one click and no password, approved once at the other computer.
+- Favorites also in the **menu bar / system tray** and the Mac **Dock**, and as
+  `remotedesk://connect/<ID>` links for Shortcuts, Siri, Raycast, a Stream Deck or a desktop shortcut.
+- **Reach your own computer while you are away**: starts at login, runs in the background and keeps
+  the computer awake.
+
+**During a session**
+- Sharp picture: **1920 px at up to 60 fps**, dropping frames rather than sharpness on a slow network.
+  Quality modes for smoothness, maximum sharpness or **saving mobile data**, with the real resolution
+  and frame rate shown in the toolbar.
+- The remote computer's **sound**, with a mute button.
+- **Multiple monitors**: one at a time or all side by side.
+- **Shared clipboard** (text) in both directions.
+- **Files**: drag and drop onto the remote screen to send; copy a file there (Ctrl/Cmd+C) or pick it
+  on the remote screen to download.
+- **Privacy screen** (Windows): black out the controlled computer's monitors while you work on it.
+- Shortcuts your own system would catch (Alt+Tab, Win, Cmd+Tab…), screenshots, full screen.
+
+**Safety**
+- Nobody gets in without **Allow** at the computer, except favorites that were approved there.
+- An always-on-top session panel, local mouse priority, and approvals the remote side can't click for you.
+- A history of every connection to this computer, with a notification when someone connects.
+- No account; picture, sound and input go directly between the computers, encrypted.
+
+**Everything else**
+- Diagnostics log with IDs and keys redacted, ready to paste into a bug report.
+- Automatic updates on Windows and macOS, Czech and English, light and dark theme.
 
 ## Install
 
@@ -50,6 +68,8 @@ Download the installer for your system from [Releases](../../releases):
 3. You click **Allow**. A black panel on top of all windows shows the session; **Disconnect** ends it any time.
 4. For your own computers, click the **star** in the session toolbar. Once the other computer approves
    it, you connect with one click and no password.
+5. To reach a computer while you are away (e.g. your home PC from school), turn on **Start at login
+   and run in the background** and **Keep this computer awake** in its Settings.
 
 On macOS the controlled Mac needs two permissions, granted once (the app guides you under
 **Permissions**): **Screen Recording** and **Accessibility**. Windows needs no permissions.
@@ -66,9 +86,12 @@ into the app under **How to use**.
 - The screen is captured with Electron's `desktopCapturer`; mouse and keyboard are injected with
   [`@jitsi/robotjs`](https://github.com/jitsi/robotjs).
 
-Some networks (mobile data, strict corporate firewalls) block direct connections. For those, add a
-TURN relay under **Settings → TURN relay** (e.g. your own [coturn](https://github.com/coturn/coturn)
-or a hosted TURN service).
+- Favorites use a second, private room per computer, encrypted with a key that computer hands to
+  your device; your device also has to prove it holds its own private key.
+
+Most connections are direct, mobile data included. Some networks (strict corporate or school
+firewalls) block them; for those, add a TURN relay under **Settings → TURN relay** (e.g. your own
+[coturn](https://github.com/coturn/coturn) or a hosted TURN service).
 
 ## Own server (optional)
 
@@ -132,9 +155,8 @@ Run a second instance on the same machine with its own profile:
 GitHub Actions then checks that the tag matches the app version and has a changelog entry, builds the Windows installer and
 the macOS DMG/ZIP, uploads them to a draft release and publishes it when all builds succeed.
 
-Installed apps check for updates at start-up and every 4 hours:
-
-downloads the update in the background and offers **Restart and update** on both Windows and macOS.
+Installed apps check for updates at start-up and every 4 hours, download the update in the
+background and offer **Restart and update** on both Windows and macOS.
 
 ### macOS signing
 
@@ -158,9 +180,11 @@ or open an [issue](../../issues/new/choose). Security problems: see [SECURITY.md
 
 ## Roadmap
 
-- [ ] Clipboard sync and file transfer
-- [ ] Multiple monitors
-- [ ] Unattended access and a Windows service (UAC prompts, lock screen)
+- [x] Clipboard sync and file transfer
+- [x] Multiple monitors
+- [x] Favorites, unattended access while logged in, sound, privacy screen
+- [ ] A Windows service for the sign-in screen and UAC prompts
+- [ ] Images in the shared clipboard
 - [ ] Code signing (Windows) and Apple notarization (macOS) to remove first-install warnings
 - [ ] Signed update manifests (Ed25519) once electron-builder 27 is released
 
