@@ -3,6 +3,12 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.15] - 2026-10-17
+
+### Changed
+
+- The menu bar icon is now the Remote Desk logo (cursor and dot) instead of a generic monitor.
+
 ## [0.1.14] - 2026-10-17
 
 ### Added
