@@ -1704,3 +1704,13 @@ html:not(:fullscreen) .platform-linux .viewer-drag {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.trusted-note {
+  margin: 12px 4px 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.trusted-note span {
+  color: var(--text);
+}

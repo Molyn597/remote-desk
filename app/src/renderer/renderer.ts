@@ -252,6 +252,12 @@ const viewer = new Viewer(config.platform, {
     const shown = viewerTrusted && error === 'wrongPassword' ? 'untrusted' : error;
     const message = viewerTrusted && shown === 'notFound' ? 'msg.trustedNotFound' : shown && VIEWER_ERRORS[shown];
     const failed = Boolean(shown && shown !== 'partnerLeft');
+    // The trusted way failed: offer the password field right away.
+    if (viewerTrusted && failed) {
+      $<HTMLInputElement>('partner-id').value = formatId(viewerPartnerId);
+      usePassword = true;
+      syncTrustedNote();
+    }
     setStatus(message ? t(message) : '', failed, failed);
     viewerTrusted = false;
   },
@@ -339,6 +345,8 @@ $('connect-form').addEventListener('submit', (e) => {
   const pw = $<HTMLInputElement>('partner-password').value.trim();
   if (!/^\d{9}$/.test(id)) return setStatus(t('msg.invalidId'), true);
   if (id === hostId) return setStatus(t('msg.ownId'), true);
+  const known = knownDevice();
+  if (known) return void connectTrusted(known);
   viewerPartnerId = id;
   setViewerBusy(true);
   viewer.connect(settings, id, pw, { name: settings.displayName, id: hostId, identity });
@@ -357,6 +365,29 @@ idInput.addEventListener('input', () => {
   let pos = 0;
   for (let seen = 0; pos < formatted.length && seen < digitsBefore; pos++) if (/\d/.test(formatted[pos])) seen++;
   idInput.setSelectionRange(pos, pos);
+  usePassword = false;
+  syncTrustedNote();
+});
+
+// A computer that trusts this device needs no password: hide the field and say so.
+let usePassword = false;
+const knownDevice = () => {
+  const id = idInput.value.replace(/\D/g, '');
+  return usePassword || id.length !== 9 ? undefined : loadMyDevices().find((d) => d.id === id);
+};
+function syncTrustedNote() {
+  const device = knownDevice();
+  $('trusted-note').hidden = !device;
+  $('partner-password').closest<HTMLElement>('.password-field')!.hidden = Boolean(device);
+  $<HTMLInputElement>('partner-password').required = !device;
+  if (device) {
+    $('trusted-note-text').textContent = t('viewer.knownDevice', { name: device.name || formatId(device.id) });
+  }
+}
+$('use-password').addEventListener('click', () => {
+  usePassword = true;
+  syncTrustedNote();
+  $('partner-password').focus();
 });
 
 $('reveal-password').addEventListener('click', () => {
@@ -428,6 +459,7 @@ function renderMyDevices() {
       return row;
     }),
   );
+  syncTrustedNote();
 }
 $('sidebar-connect').addEventListener('click', () => {
   showPage('home');

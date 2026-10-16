@@ -3,6 +3,13 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.8] - 2026-10-16
+
+### Changed
+
+- Typing the ID of a computer that trusts this device hides the password field and connects without it. "Use a password" brings the field back, and it also comes back by itself if the password-free connection fails.
+- Clearer texts on which way trust works: Trusted devices are the ones that may connect to this computer; My devices are the ones you can connect to from here.
+
 ## [0.1.7] - 2026-10-16
 
 ### Added
