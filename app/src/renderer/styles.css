@@ -1325,3 +1325,42 @@ h3 {
   justify-content: center;
   padding: 0 24px;
 }
+
+/* File transfer */
+
+.drop-overlay {
+  position: absolute;
+  inset: 16px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  border: 3px dashed var(--accent);
+  border-radius: 28px;
+  background: rgb(20 21 22 / 55%);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.transfer {
+  margin-right: 4px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #141516;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.transfer.error {
+  background: var(--danger);
+}
+
+.error-text {
+  color: var(--danger);
+}

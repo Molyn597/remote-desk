@@ -16,7 +16,7 @@ import {
   saveSettings,
   type Settings,
 } from './settings';
-import { Viewer, type ViewerError } from './viewer';
+import { Viewer, type ViewerError, type ViewerSession } from './viewer';
 import { attachToolbar } from './viewer-toolbar';
 
 declare global {
@@ -41,6 +41,7 @@ const identity = await loadIdentity();
 let settings = loadSettings();
 let password = generatePassword();
 let detachToolbar: (() => void) | undefined;
+let viewerSession: ViewerSession | undefined;
 let viewerBusy = false;
 
 function generatePassword(length = 8): string {
@@ -131,6 +132,12 @@ const host = new Host(config.platform, {
       deny: t('confirm.deny'),
       remember: visitor.key ? t('confirm.remember') : undefined,
     }),
+  onFileReceived: (name, path) => {
+    const notice = new Notification(t(path ? 'files.receivedTitle' : 'files.receivedFailed', { name }), {
+      body: path ? t('files.receivedBody', { name }) : '',
+    });
+    if (path) notice.onclick = () => window.api.revealFile(path);
+  },
   onSessionChange: (session, error) => {
     $('host-banner').hidden = !session;
     showSessionPanel(session);
@@ -195,6 +202,7 @@ const viewer = new Viewer(config.platform, {
     $('viewer-title').textContent = t('session.connectedTo', { id: formatId(viewerPartnerId) });
     $('viewer').hidden = false;
     window.api.setSessionState('viewer');
+    viewerSession = session;
     detachToolbar = attachToolbar(session, {
       partnerId: viewerPartnerId,
       localIsMac: isMac,
@@ -207,6 +215,7 @@ const viewer = new Viewer(config.platform, {
   onEnd: (error) => {
     detachToolbar?.();
     detachToolbar = undefined;
+    viewerSession = undefined;
     video.srcObject = null;
     $('viewer').hidden = true;
     window.api.setSessionState('idle');
@@ -501,7 +510,27 @@ async function refreshPermissions() {
   setBadge('perm-screen-status', screenOk);
   setBadge('perm-accessibility-status', perms.accessibility);
   $('permission-banner').hidden = screenOk && perms.accessibility;
+  // "Fix" is offered only for a missing permission, never to reset a working one.
+  $('perm-fix-hint').hidden = screenOk && perms.accessibility;
+  for (const button of document.querySelectorAll<HTMLElement>('[data-reset]')) {
+    button.hidden = button.dataset.reset === 'screen' ? screenOk : perms.accessibility;
+  }
 }
+
+for (const button of document.querySelectorAll<HTMLElement>('[data-reset]')) {
+  button.addEventListener('click', async () => {
+    const ok = await window.api.resetPermission(button.dataset.reset as PermissionKind);
+    const hint = $('perm-fix-hint');
+    hint.textContent = t(ok ? 'perm.fixHint' : 'perm.fixFailed');
+    hint.classList.toggle('error-text', !ok);
+  });
+}
+
+// Shared clipboard: whichever role is active forwards local copies to the partner.
+window.api.onClipboardChange((text) => {
+  host.shareClipboard(text);
+  viewerSession?.shareClipboard(text);
+});
 
 for (const button of document.querySelectorAll<HTMLElement>('[data-permission]')) {
   button.addEventListener('click', () => window.api.requestPermission(button.dataset.permission as PermissionKind));

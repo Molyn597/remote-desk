@@ -1,13 +1,17 @@
 import type { Room } from '@trystero-p2p/ws-relay';
-import type {
-  Answer,
-  AnswerReason,
-  Challenge,
-  Control,
-  Hello,
-  InputEvent,
-  Proof,
-  SessionStatus,
+import {
+  MAX_CLIPBOARD_CHARS,
+  MAX_FILE_BYTES,
+  type Answer,
+  type AnswerReason,
+  type Challenge,
+  type ClipboardData,
+  type Control,
+  type FileMeta,
+  type Hello,
+  type InputEvent,
+  type Proof,
+  type SessionStatus,
 } from '../../../shared/protocol';
 import { challengeText, type Identity } from './identity';
 import { join } from './network';
@@ -28,8 +32,15 @@ export interface ViewerSession {
   onControlChange?: (canControl: boolean) => void;
   sendInput(ev: InputEvent): void;
   sendControl(control: Control): void;
+  // Shared clipboard; the toolbar can turn it off for this session.
+  clipboardEnabled: boolean;
+  shareClipboard(text: string): void;
+  // Resolves to the result reported by the host after it saved the file.
+  sendFile(file: File, onProgress: (fraction: number) => void): Promise<FileResult>;
   connection(): RTCPeerConnection | undefined;
 }
+
+export type FileResult = 'sent' | 'tooLarge' | 'rejected';
 
 export interface ViewerEvents {
   onStatus(status: ViewerStatus): void;
@@ -82,7 +93,22 @@ export class Viewer {
     const status = room.makeAction<SessionStatus>('status');
     const challenge = room.makeAction<Challenge>('challenge');
     const proof = room.makeAction<Proof>('proof');
+    const clip = room.makeAction<ClipboardData>('clip');
+    const file = room.makeAction<ArrayBuffer>('file');
+    const fileAck = room.makeAction<{ name: string; ok: boolean }>('fileack');
+    const ackWaiters = new Map<string, (ok: boolean) => void>();
     let session: ViewerSession | undefined;
+
+    clip.onMessage = (data, { peerId }) => {
+      const text = data?.text;
+      if (session?.clipboardEnabled && session.canControl && peerId === this.hostPeer && typeof text === 'string' && text.length <= MAX_CLIPBOARD_CHARS) {
+        window.api.writeClipboard(text);
+      }
+    };
+    fileAck.onMessage = (data, { peerId }) => {
+      if (peerId !== this.hostPeer || typeof data?.name !== 'string') return;
+      ackWaiters.get(data.name)?.(Boolean(data.ok));
+    };
 
     // Only the host may get our signature; a challenge can arrive before its hello.
     const pendingChallenges = new Map<string, string>();
@@ -124,7 +150,27 @@ export class Viewer {
         sendInput: (ev) => void input.send(ev, { target: peerId }),
         sendControl: (c) => void control.send(c, { target: peerId }),
         connection: () => this.room?.getPeers()[peerId],
+        clipboardEnabled: true,
+        shareClipboard: (text) => {
+          if (session?.clipboardEnabled && session.canControl) void clip.send({ text }, { target: peerId });
+        },
+        sendFile: async (f, onProgress) => {
+          if (f.size > MAX_FILE_BYTES) return 'tooLarge';
+          const name = f.name.slice(0, 200);
+          const acked = new Promise<boolean>((resolve) => ackWaiters.set(name, resolve));
+          const meta: FileMeta = { name, size: f.size };
+          try {
+            await file.send(await f.arrayBuffer(), { target: peerId, metadata: meta, onProgress: (p) => onProgress(p) });
+          } catch {
+            ackWaiters.delete(name);
+            return 'rejected';
+          }
+          const ok = await Promise.race([acked, new Promise<boolean>((r) => setTimeout(() => r(false), 30_000))]);
+          ackWaiters.delete(name);
+          return ok ? 'sent' : 'rejected';
+        },
       };
+      window.api.watchClipboard(true);
       this.events.onConnected(session);
     };
     status.onMessage = (data, { peerId }) => {

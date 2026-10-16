@@ -1,4 +1,6 @@
+import { execFile } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
 import path from 'node:path';
 import {
   app,
@@ -25,7 +27,9 @@ import type {
   SessionState,
 } from '../preload/api';
 import { handleInput, resetInput, watchLocalMouse } from './input';
-import { rawFileUrl, repoUrl } from './repo';
+import { watchClipboard, writeClipboard } from './clipboard';
+import { saveReceivedFile, wasSaved } from './files';
+import { appId, rawFileUrl, repoUrl } from './repo';
 import { checkForUpdates, getUpdateState, installUpdate, openDownloadPage, setupUpdater } from './updater';
 
 const isMac = process.platform === 'darwin';
@@ -155,6 +159,7 @@ function onSessionState(state: SessionState) {
     resetInput();
     showSessionPanel(null);
   }
+  if (state === 'idle') void watchClipboard(false, () => {});
   sessionState = state;
   watchLocalMouse(state === 'host');
   setMenu(state === 'viewer');
@@ -198,6 +203,22 @@ async function offerMoveToApplications() {
 
 const fromMainWindow = (e: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => e.sender === win?.webContents;
 
+const TCC_SERVICES: Record<PermissionKind, string> = { screen: 'ScreenCapture', accessibility: 'Accessibility' };
+
+// Removes this app's stale entry (e.g. granted to an older, differently signed
+// version) so macOS asks again for the current app. Only touches our own bundle.
+async function resetPermission(kind: PermissionKind): Promise<boolean> {
+  if (!isMac || !app.isPackaged || !appId || !(kind in TCC_SERVICES)) return false;
+  try {
+    await promisify(execFile)('/usr/bin/tccutil', ['reset', TCC_SERVICES[kind], appId]);
+  } catch (err) {
+    console.error('tccutil reset failed', err);
+    return false;
+  }
+  await requestPermission(kind);
+  return true;
+}
+
 async function requestPermission(kind: PermissionKind) {
   if (!isMac) return;
   // Asking once makes macOS list the app in System Settings.
@@ -234,11 +255,24 @@ app.whenReady().then(async () => {
     accessibility: isMac ? systemPreferences.isTrustedAccessibilityClient(false) : true,
   }));
   ipcMain.handle('request-permission', (_e, kind: PermissionKind) => requestPermission(kind));
+  ipcMain.handle('reset-permission', (e, kind: PermissionKind) => (fromMainWindow(e) ? resetPermission(kind) : false));
+  ipcMain.on('clipboard-watch', (e, enabled: boolean) => {
+    if (fromMainWindow(e)) void watchClipboard(Boolean(enabled), (text) => win?.webContents.send('clipboard-changed', text));
+  });
+  ipcMain.on('clipboard-write', (e, text: unknown) => {
+    if (fromMainWindow(e) && sessionState !== 'idle') void writeClipboard(text);
+  });
+  ipcMain.handle('save-file', (e, name: unknown, data: unknown) =>
+    fromMainWindow(e) && sessionState === 'host' ? saveReceivedFile(name, data) : null,
+  );
+  ipcMain.on('reveal-file', (e, target: unknown) => {
+    if (fromMainWindow(e) && wasSaved(target)) shell.showItemInFolder(target as string);
+  });
   ipcMain.on('relaunch', () => {
     app.relaunch();
     app.exit(0);
   });
-  ipcMain.on('copy-text', (_e, text: string) => clipboard.writeText(String(text)));
+  ipcMain.on('copy-text', (_e, text: string) => void clipboard.writeText(String(text)));
   ipcMain.handle('confirm-connection', async (e, text: ConfirmText): Promise<ConfirmResult> => {
     if (!win || !fromMainWindow(e)) return { choice: 'deny', remember: false };
     if (win.isMinimized()) win.restore();

@@ -3,6 +3,14 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.1.4] - 2026-10-16
+
+### Added
+
+- Shared clipboard: text copied on one computer can be pasted on the other while remote control is allowed. Turn it off in the session toolbar.
+- File transfer: drop files onto the remote screen or use Send files in the toolbar. They are saved to Downloads on the controlled computer, which shows a notification. Up to 500 MB per file; refused in view-only mode.
+- macOS: a Fix button on the Permissions page removes a stale permission entry and asks again, so there's no need to remove it by hand in System Settings.
+
 ## [0.1.3] - 2026-10-16
 
 ### Fixed

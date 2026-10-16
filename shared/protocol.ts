@@ -28,6 +28,14 @@ export type Control = { quality: Quality };
 
 export const MAX_NAME_LENGTH = 40;
 
+// Shared clipboard (text only), sent both ways while remote control is allowed.
+export type ClipboardData = { text: string };
+export const MAX_CLIPBOARD_CHARS = 100_000;
+
+// Viewer -> host file transfer: the file is the binary payload, this is its metadata.
+export type FileMeta = { name: string; size: number };
+export const MAX_FILE_BYTES = 500 * 1024 * 1024;
+
 // Viewer -> host input. Coordinates are normalized to 0..1 of the host's primary display.
 
 export type MouseButton = 'left' | 'right' | 'middle';

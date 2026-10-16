@@ -89,6 +89,8 @@ Lišta je nahoře uprostřed okna. Po chvíli se schová a znovu se ukáže, kdy
 | Tachometr | **Kvalita**: automaticky, upřednostnit rychlost (pro slabou síť), nebo upřednostnit kvalitu. |
 | Oko | **Jen sledovat**: obraz vidíte, ale myš a klávesnice se neposílají. |
 | Klávesnice | **Odeslat zkratku**, kterou by jinak zachytil váš vlastní systém (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
+| Schránka | **Sdílená schránka** zapnout/vypnout. Když je zapnutá, text zkopírovaný na jednom počítači vložíte na druhém (jen při povoleném ovládání). |
+| Šipka nahoru | **Odeslat soubory** na vzdálený počítač. Soubory můžete i přetáhnout do obrazu. Uloží se tam do Stažených souborů (max. 500 MB na soubor). |
 | Fotoaparát | **Uložit snímek** vzdálené obrazovky jako PNG. |
 | Připínáček | Lišta zůstane trvale zobrazená. |
 | Křížek | **Odpojit**. |
@@ -143,6 +145,8 @@ a heslo. Můžete použít vlastní (např. [coturn](https://github.com/coturn/c
 **Na Macu vidím černou obrazovku nebo nejde ovládat**
 - Ovládaný Mac musí mít povolené Nahrávání obrazovky a Zpřístupnění (stránka **Oprávnění**)
   a po povolení je potřeba aplikaci restartovat.
+- Pokud oprávnění v Nastavení vypadá zapnuté, ale aplikace hlásí, že chybí, klikněte na stránce
+  Oprávnění na **Opravit**. Stará položka se smaže a macOS se zeptá znovu.
 
 **Na Windows nejde ovládat okno správce nebo dialog „Řízení uživatelských účtů“**
 - To je známé omezení. Windows nedovolí běžné aplikaci ovládat okna spuštěná jako správce.

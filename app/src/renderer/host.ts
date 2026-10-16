@@ -1,9 +1,13 @@
 import type { Room } from '@trystero-p2p/ws-relay';
 import {
+  MAX_CLIPBOARD_CHARS,
+  MAX_FILE_BYTES,
   MAX_NAME_LENGTH,
   type Answer,
   type Challenge,
+  type ClipboardData,
   type Control,
+  type FileMeta,
   type Hello,
   type InputEvent,
   type Proof,
@@ -46,6 +50,7 @@ export interface HostSession extends Visitor {
 export interface HostEvents {
   confirm(visitor: Visitor): Promise<{ choice: ConfirmChoice; remember: boolean }>;
   onSessionChange(session: HostSession | null, error?: 'capture' | 'partnerLeft'): void;
+  onFileReceived(name: string, path: string | null): void;
 }
 
 const cleanName = (value: unknown) =>
@@ -69,6 +74,7 @@ export class Host {
   private hostId = '';
   private proofWaiters = new Map<string, (signature: string) => void>();
   private sendChallenge?: (data: Challenge, peerId: string) => void;
+  private sendClip?: (data: ClipboardData, peerId: string) => void;
   private sendHello?: (data: Hello, peerId: string) => void;
   private sendAnswer?: (data: Answer, peerId: string) => void;
   private sendStatus?: (data: SessionStatus, peerId: string) => void;
@@ -97,6 +103,10 @@ export class Host {
     const control = room.makeAction<Control>('control');
     const challenge = room.makeAction<Challenge>('challenge');
     const proof = room.makeAction<Proof>('proof');
+    const clip = room.makeAction<ClipboardData>('clip');
+    const file = room.makeAction<ArrayBuffer>('file');
+    const fileAck = room.makeAction<{ name: string; ok: boolean }>('fileack');
+    this.sendClip = (data, peerId) => void clip.send(data, { target: peerId });
     this.sendChallenge = (data, peerId) => void challenge.send(data, { target: peerId });
     this.sendHello = (data, peerId) => void hello.send(data, { target: peerId });
     this.sendAnswer = (data, peerId) => void answer.send(data, { target: peerId });
@@ -112,6 +122,22 @@ export class Host {
         id: cleanId(data.id),
         key: cleanKey(data.key),
       });
+    };
+    clip.onMessage = (data, { peerId }) => {
+      const text = data?.text;
+      if (this.controlAllowed(peerId) && typeof text === 'string' && text.length <= MAX_CLIPBOARD_CHARS) {
+        window.api.writeClipboard(text);
+      }
+    };
+    // Files are refused before any data arrives unless the sender may control this computer.
+    file.onReceive = ({ peerId, byteLength }) => this.controlAllowed(peerId) && byteLength <= MAX_FILE_BYTES;
+    file.onMessage = async (data, { peerId, metadata }) => {
+      if (!this.controlAllowed(peerId)) return;
+      const name = String((metadata as FileMeta | undefined)?.name ?? 'file').slice(0, 200);
+      const buffer = data instanceof ArrayBuffer ? data : new Uint8Array(data as ArrayBufferLike).slice().buffer;
+      const path = await window.api.saveReceivedFile(name, buffer).catch(() => null);
+      void fileAck.send({ name, ok: Boolean(path) }, { target: peerId });
+      this.events.onFileReceived(name, path);
     };
     proof.onMessage = (data, { peerId }) => {
       const waiter = this.proofWaiters.get(peerId);
@@ -138,6 +164,17 @@ export class Host {
 
   disconnect() {
     this.endSession(true);
+  }
+
+  // Sends this computer's clipboard to the viewer; only while it may control us.
+  shareClipboard(text: string) {
+    const peerId = this.session?.peerId;
+    if (peerId && this.controlAllowed(peerId)) this.sendClip?.({ text }, peerId);
+  }
+
+  private controlAllowed(peerId: string) {
+    const s = this.session;
+    return Boolean(s && s.peerId === peerId && s.canControl && !s.paused);
   }
 
   setPaused(paused: boolean) {
@@ -215,6 +252,7 @@ export class Host {
   ) {
     this.session = { ...visitor, peerId, canControl, paused: false, startedAt: Date.now(), trusted };
     window.api.setSessionState('host');
+    window.api.watchClipboard(true);
     this.events.onSessionChange({ ...this.session });
 
     let stream: MediaStream;

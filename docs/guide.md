@@ -90,6 +90,8 @@ move the mouse to the top edge.
 | Gauge | **Quality**: automatic, optimize speed (slow networks) or optimize quality. |
 | Eye | **View only**: you see the screen but mouse and keyboard are not sent. |
 | Keyboard | **Send a shortcut** your own system would otherwise catch (Alt+Tab, Win, Cmd+Tab, Spotlight…). |
+| Clipboard | **Shared clipboard** on or off. While on, text you copy on one computer can be pasted on the other (only when control is allowed). |
+| Arrow up | **Send files** to the remote computer. You can also drop files onto the remote screen. They are saved to Downloads there (up to 500 MB each). |
 | Camera | **Save a screenshot** of the remote screen as PNG. |
 | Pin | Keeps the toolbar visible. |
 | Cross | **Disconnect**. |
@@ -143,6 +145,8 @@ Use your own (e.g. [coturn](https://github.com/coturn/coturn)) or a hosted servi
 **On a Mac the screen is black or control doesn't work**
 - The controlled Mac needs Screen Recording and Accessibility (the **Permissions** page), and the app
   must be restarted after granting them.
+- If a permission looks enabled in System Settings but the app says it's missing, click **Fix** on the
+  Permissions page. The stale entry is removed and macOS asks again.
 
 **On Windows, admin windows or the User Account Control prompt can't be controlled**
 - This is a known limitation: Windows doesn't let a regular app control windows running as administrator.

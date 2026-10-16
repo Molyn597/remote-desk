@@ -56,6 +56,13 @@ export interface Api {
   // Session panel window.
   onSessionPanelInfo(handler: (info: SessionPanelInfo) => void): void;
   sendSessionAction(action: SessionAction): void;
+  // Permissions, shared clipboard and received files.
+  resetPermission(kind: PermissionKind): Promise<boolean>;
+  watchClipboard(enabled: boolean): void;
+  onClipboardChange(handler: (text: string) => void): void;
+  writeClipboard(text: string): void;
+  saveReceivedFile(name: string, data: ArrayBuffer): Promise<string | null>;
+  revealFile(path: string): void;
   // What's new and feedback.
   getChangelog(): Promise<string>;
   getRemoteChangelog(version: string): Promise<string | null>;

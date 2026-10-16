@@ -268,6 +268,7 @@
                 <small data-i18n="perm.screenHint"></small>
               </div>
               <span class="badge" id="perm-screen-status"></span>
+              <button class="small-button" data-reset="screen" data-i18n="perm.fix" hidden></button>
               <button class="small-button" data-permission="screen" data-i18n="perm.open"></button>
             </div>
             <div class="permission-row">
@@ -276,9 +277,11 @@
                 <small data-i18n="perm.accessibilityHint"></small>
               </div>
               <span class="badge" id="perm-accessibility-status"></span>
+              <button class="small-button" data-reset="accessibility" data-i18n="perm.fix" hidden></button>
               <button class="small-button" data-permission="accessibility" data-i18n="perm.open"></button>
             </div>
           </div>
+          <p class="hint wide" id="perm-fix-hint" data-i18n="perm.fixHint" hidden></p>
           <div class="form-actions">
             <button class="primary-button" id="relaunch" data-i18n="perm.restart"></button>
           </div>
@@ -370,12 +373,14 @@
     <div class="viewer" id="viewer" hidden>
       <div class="viewer-stage" id="viewer-stage">
         <video id="remote-video" autoplay muted playsinline tabindex="0"></video>
+        <div class="drop-overlay" id="drop-overlay" hidden><span id="drop-text"></span></div>
       </div>
       <div class="viewer-drag"></div>
 
       <div class="toolbar" id="toolbar">
         <span class="toolbar-title" id="viewer-title"></span>
         <span class="conn" id="conn-info"><span class="dot"></span><span id="conn-text">…</span></span>
+        <span class="transfer" id="transfer-status" hidden></span>
         <span class="control-notice" id="control-notice" data-i18n="toolbar.controlOff" hidden></span>
         <span class="toolbar-sep"></span>
         <button class="tool" id="tool-scale" data-i18n-title="toolbar.original">
@@ -403,6 +408,13 @@
           </button>
           <div class="menu" id="menu-keys" hidden></div>
         </div>
+        <button class="tool active" id="tool-clipboard" data-i18n-title="toolbar.clipboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1" /><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" /></svg>
+        </button>
+        <button class="tool" id="tool-file" data-i18n-title="toolbar.sendFile">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg>
+        </button>
+        <input type="file" id="file-input" multiple hidden />
         <button class="tool" id="tool-screenshot" data-i18n-title="toolbar.screenshot">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
         </button>

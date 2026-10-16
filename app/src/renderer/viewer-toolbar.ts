@@ -207,6 +207,70 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
     }, 'image/png');
   });
 
+  // Shared clipboard on/off for this session.
+  onClick('tool-clipboard', () => {
+    session.clipboardEnabled = !session.clipboardEnabled;
+    $('tool-clipboard').classList.toggle('active', session.clipboardEnabled);
+  });
+  cleanups.push(() => $('tool-clipboard').classList.add('active'));
+
+  // File transfer: toolbar button or drag and drop onto the remote screen.
+  const transfer = $('transfer-status');
+  let transferTimer = 0;
+  const showTransfer = (text: string, error = false, hideAfter = 0) => {
+    clearTimeout(transferTimer);
+    transfer.textContent = text;
+    transfer.classList.toggle('error', error);
+    transfer.hidden = false;
+    reveal();
+    if (hideAfter) transferTimer = window.setTimeout(() => (transfer.hidden = true), hideAfter);
+  };
+  let sending = Promise.resolve();
+  const sendFiles = (files: FileList | File[]) => {
+    for (const f of Array.from(files)) {
+      sending = sending.then(async () => {
+        if (!session.canControl) return showTransfer(t('files.notAllowed'), true, 4000);
+        const name = f.name;
+        showTransfer(t('files.sending', { name, percent: '0' }));
+        const result = await session.sendFile(f, (p) =>
+          showTransfer(t('files.sending', { name, percent: String(Math.round(p * 100)) })),
+        );
+        if (result === 'sent') showTransfer(t('files.sent', { name }), false, 4000);
+        else showTransfer(t(result === 'tooLarge' ? 'files.tooLarge' : 'files.rejected', { name }), true, 6000);
+      });
+    }
+  };
+  const fileInput = $<HTMLInputElement>('file-input');
+  onClick('tool-file', () => fileInput.click());
+  listen(fileInput, 'change', () => {
+    if (fileInput.files?.length) sendFiles(fileInput.files);
+    fileInput.value = '';
+  });
+  const overlay = $('drop-overlay');
+  let dragDepth = 0;
+  listen(stage, 'dragenter', (e: DragEvent) => {
+    if (!e.dataTransfer?.types.includes('Files')) return;
+    e.preventDefault();
+    dragDepth++;
+    $('drop-text').textContent = t(session.canControl ? 'files.drop' : 'files.notAllowed');
+    overlay.hidden = false;
+  });
+  listen(stage, 'dragover', (e: DragEvent) => e.preventDefault());
+  listen(stage, 'dragleave', () => {
+    if (--dragDepth <= 0) overlay.hidden = true;
+  });
+  listen(stage, 'drop', (e: DragEvent) => {
+    e.preventDefault();
+    dragDepth = 0;
+    overlay.hidden = true;
+    if (e.dataTransfer?.files.length) sendFiles(e.dataTransfer.files);
+  });
+  cleanups.push(() => {
+    clearTimeout(transferTimer);
+    transfer.hidden = true;
+    overlay.hidden = true;
+  });
+
   // Auto-hide unless pinned, hovered or a menu is open.
   let pinned = false;
   let hideTimer = 0;
