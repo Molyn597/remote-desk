@@ -379,13 +379,11 @@
                 </button>
                 <button class="ghost-button" id="update-check" data-i18n="update.check"></button>
               </div>
-              <label class="option beta-option" id="beta-option" hidden>
-                <input type="checkbox" id="setting-beta" />
-                <span>
-                  <strong data-i18n="update.beta"></strong>
-                  <span class="hint" data-i18n="update.betaHint"></span>
-                </span>
-              </label>
+              <div class="update-track" id="update-track-row" hidden>
+                <h3 class="section-title" data-i18n="update.track"></h3>
+                <select id="update-track"></select>
+                <p class="hint" id="update-track-hint"></p>
+              </div>
             </article>
 
             <article class="card">

@@ -1,11 +1,11 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { app, shell } from 'electron';
+import { app, net, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import type { UpdateState } from '../preload/api';
 import { allowQuit } from './background';
 import { log } from './log';
-import { repoUrl } from './repo';
+import { repo, repoUrl } from './repo';
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
@@ -17,8 +17,11 @@ let canInstall = process.platform === 'win32' || process.platform === 'darwin';
 let state: UpdateState = { status: app.isPackaged ? 'idle' : 'unsupported', canInstall };
 let notify: (state: UpdateState) => void = () => {};
 
-// Update channel: stable releases only, or betas too. A beta installed by hand starts on the
-// beta channel. Leaving it goes back to the newest stable release, even if its number is lower.
+// Which versions to follow: the newest stable release, the newest release including betas, or one
+// chosen version (e.g. to go back), which then stays until the person picks "newest" again.
+// A beta installed by hand starts on the beta track.
+export type UpdateTrack = 'stable' | 'beta' | string;
+const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/;
 const isPrerelease = (version: string) => version.includes('-');
 const prefsPath = () => path.join(app.getPath('userData'), 'prefs.json');
 const readPrefs = (): Record<string, unknown> => {
@@ -28,30 +31,72 @@ const readPrefs = (): Record<string, unknown> => {
     return {};
   }
 };
-let beta = false;
+export const validTrack = (value: unknown): value is UpdateTrack =>
+  value === 'stable' || value === 'beta' || (typeof value === 'string' && VERSION.test(value));
+let track: UpdateTrack = 'stable';
 
-// On the beta channel electron-updater takes the newest release of any kind and falls back to
+// On the beta track electron-updater takes the newest release of any kind and falls back to
 // latest*.yml when a release has no beta*.yml, so stable releases are offered to betas too.
-function applyChannel() {
-  autoUpdater.allowPrerelease = beta;
-  autoUpdater.channel = beta ? 'beta' : 'latest';
-  autoUpdater.allowDowngrade = !beta && isPrerelease(app.getVersion());
+// A chosen version is read straight from that release's files, older ones included.
+function applyTrack() {
+  if (track === 'stable' || track === 'beta') {
+    if (repo) autoUpdater.setFeedURL({ provider: 'github', owner: repo.owner, repo: repo.name });
+    autoUpdater.allowPrerelease = track === 'beta';
+    autoUpdater.channel = track === 'beta' ? 'beta' : 'latest';
+    autoUpdater.allowDowngrade = track === 'stable' && isPrerelease(app.getVersion());
+  } else {
+    const url = repoUrl(`/releases/download/v${track}`);
+    if (url) autoUpdater.setFeedURL({ provider: 'generic', url, channel: 'latest' });
+    autoUpdater.allowPrerelease = true;
+    autoUpdater.channel = 'latest';
+    autoUpdater.allowDowngrade = true;
+  }
 }
 
-export const getBetaChannel = () => beta;
+export const getUpdateTrack = () => track;
 
-export function setBetaChannel(enabled: boolean) {
-  if (enabled === beta) return;
-  beta = enabled;
+export function setUpdateTrack(next: UpdateTrack) {
+  if (next === track) return;
+  track = next;
   try {
-    writeFileSync(prefsPath(), JSON.stringify({ ...readPrefs(), betaUpdates: enabled }));
+    const { betaUpdates: _old, ...prefs } = readPrefs();
+    writeFileSync(prefsPath(), JSON.stringify({ ...prefs, updateTrack: next }));
   } catch {
     // stays for this run
   }
-  log('info', 'update', `channel: ${enabled ? 'beta' : 'stable'}`);
+  log('info', 'update', `track: ${next}`);
   if (!app.isPackaged) return;
-  applyChannel();
+  setState({ status: 'idle', version: undefined, error: undefined });
+  applyTrack();
   void checkForUpdates();
+}
+
+export interface Release {
+  version: string;
+  prerelease: boolean;
+  date: string;
+}
+
+// Published releases, newest first, for picking a version. Cached for a while.
+let releases: { at: number; list: Release[] } | undefined;
+export async function listReleases(): Promise<Release[]> {
+  if (releases && Date.now() - releases.at < 10 * 60 * 1000) return releases.list;
+  if (!repo) return [];
+  try {
+    const res = await net.fetch(`https://api.github.com/repos/${repo.owner}/${repo.name}/releases?per_page=20`, {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as { tag_name: string; draft: boolean; prerelease: boolean; published_at: string }[];
+    const list = data
+      .filter((r) => !r.draft && VERSION.test(r.tag_name.replace(/^v/, '')))
+      .map((r) => ({ version: r.tag_name.replace(/^v/, ''), prerelease: r.prerelease, date: r.published_at }));
+    releases = { at: Date.now(), list };
+    return list;
+  } catch (err) {
+    log('warn', 'update', `release list unavailable: ${(err as Error).message ?? err}`);
+    return releases?.list ?? [];
+  }
 }
 
 function setState(next: Partial<UpdateState>) {
@@ -85,16 +130,18 @@ export function installUpdate() {
 }
 
 export function openDownloadPage() {
-  const url = repoUrl(beta ? '/releases' : '/releases/latest');
+  const url = repoUrl(track === 'stable' ? '/releases/latest' : track === 'beta' ? '/releases' : `/releases/tag/v${track}`);
   if (url) void shell.openExternal(url);
 }
 
 export function setupUpdater(onChange: (state: UpdateState) => void) {
   notify = onChange;
-  const saved = readPrefs().betaUpdates;
-  beta = typeof saved === 'boolean' ? saved : isPrerelease(app.getVersion());
+  const prefs = readPrefs();
+  // Earlier versions stored only an on/off beta switch.
+  const saved = validTrack(prefs.updateTrack) ? prefs.updateTrack : typeof prefs.betaUpdates === 'boolean' ? (prefs.betaUpdates ? 'beta' : 'stable') : undefined;
+  track = saved ?? (isPrerelease(app.getVersion()) ? 'beta' : 'stable');
   if (!app.isPackaged) return;
-  applyChannel();
+  applyTrack();
 
   autoUpdater.autoDownload = canInstall;
   autoUpdater.autoInstallOnAppQuit = canInstall;

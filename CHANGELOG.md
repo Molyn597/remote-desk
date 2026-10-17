@@ -3,6 +3,19 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.8] - 2026-10-17
+
+Test version. Installed by beta testers; regular versions don't update to it.
+
+### Changed
+
+- What's new: the beta switch is now a **Version** list. Choose the newest stable version, the newest version including betas, or any published version, older ones too. A chosen version stays installed (automatic updates pause) until you pick one of the newest options again.
+- Smoother page switches: the Settings page now builds the connection history and the log after its animation, and shows only the newest 400 log lines (Copy still copies the whole log).
+
+### Added
+
+- Diagnostics log: which graphics chip draws the app, and page switches that drew slowly, to track down stutter.
+
 ## [0.2.0-beta.7] - 2026-10-17
 
 Test version of the smoother picture. Installed by beta testers; regular versions don't update to it.

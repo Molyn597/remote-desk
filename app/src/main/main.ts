@@ -30,7 +30,7 @@ import type {
 } from '../preload/api';
 import { applyTrayState, cleanTrayState, keepAliveOnClose, setRunAtLogin, startedHidden } from './background';
 import { listDisplays, viewRect } from './displays';
-import { clearLog, errorText, log, logFile, logStartup, readLog } from './log';
+import { clearLog, errorText, log, logFile, logGpu, logStartup, readLog } from './log';
 import { setKeepAwake, setSessionAwake } from './power';
 import { handleInput, resetInput, setInputView, setLocalActivityHandler, watchLocalMouse } from './input';
 import { privacyOn, setPrivacyScreen } from './privacy';
@@ -39,7 +39,7 @@ import { POWER_ACTIONS, type PowerAction } from '../../../shared/protocol';
 import { watchClipboard, writeClipboard } from './clipboard';
 import { clearOffers, offerFiles, readOfferedFile, saveReceivedFile, wasSaved } from './files';
 import { appId, rawFileUrl, repoUrl } from './repo';
-import { checkForUpdates, getBetaChannel, getUpdateState, installUpdate, openDownloadPage, setBetaChannel, setupUpdater } from './updater';
+import { checkForUpdates, getUpdateState, getUpdateTrack, installUpdate, listReleases, openDownloadPage, setUpdateTrack, setupUpdater, validTrack } from './updater';
 
 const isMac = process.platform === 'darwin';
 const PRIVACY_PANES: Record<PermissionKind, string> = {
@@ -325,6 +325,8 @@ handleLink(linkInArgs(process.argv));
 
 app.whenReady().then(async () => {
   logStartup();
+  // The GPU status is only known once the GPU process runs for the first window.
+  setTimeout(() => void logGpu(), 5000);
   if (isMac) {
     log('info', 'permission', `screen recording ${systemPreferences.getMediaAccessStatus('screen')}, accessibility ${systemPreferences.isTrustedAccessibilityClient(false) ? 'granted' : 'not granted'}`);
   }
@@ -497,9 +499,10 @@ app.whenReady().then(async () => {
     if (fromMainWindow(e)) openFeedback(kind);
   });
   ipcMain.handle('update-state', () => getUpdateState());
-  ipcMain.handle('update-beta', () => getBetaChannel());
-  ipcMain.on('update-set-beta', (e, enabled: unknown) => {
-    if (fromMainWindow(e)) setBetaChannel(enabled === true);
+  ipcMain.handle('update-track', () => getUpdateTrack());
+  ipcMain.handle('update-releases', (e) => (fromMainWindow(e) ? listReleases() : []));
+  ipcMain.on('update-set-track', (e, value: unknown) => {
+    if (fromMainWindow(e) && validTrack(value)) setUpdateTrack(value);
   });
   ipcMain.on('update-check', (e) => {
     if (fromMainWindow(e)) void checkForUpdates();

@@ -67,9 +67,12 @@ pruh a tlačítko **Stáhnout aktualizaci** / **Restartovat a aktualizovat** na 
 zoranžoví. Po restartu se aktualizace nainstaluje na Windows i na macOS. **Zkontrolovat** hledá
 aktualizaci hned, **Co je nového** ukazuje změny v jednotlivých verzích.
 
-**Testovací (beta) verze** (na stejné stránce): zapněte, pokud chcete nové funkce dřív, než jsou
-hotové; mohou obsahovat chyby. Vypnutím se vrátíte na nejnovější stabilní verzi, i když má nižší
-číslo.
+**Verze** (na stejné stránce) určuje, co se nainstaluje:
+- **Nejnovější stabilní verze** (doporučeno): aktualizuje se na každé nové stabilní vydání.
+- **Nejnovější verze včetně beta**: nové funkce dřív, než jsou hotové; mohou obsahovat chyby.
+- **Konkrétní verze**: nainstaluje přesně ji, i starší (třeba pro návrat po problému). Automatické
+  aktualizace se pak pozastaví, dokud znovu nezvolíte některou z nejnovějších. Z bety se na nejnovější
+  stabilní verzi vrátíte, i když má nižší číslo.
 
 ## Nechat se ovládat
 

@@ -89,6 +89,28 @@ function animateIn(elements: Iterable<Element>) {
   );
 }
 
+// Milliseconds until the last part of an animateIn() has landed (0.5 s each, 50 ms apart).
+const settleTime = (count: number) => (reduceMotion() ? 0 : 500 + Math.max(0, count - 1) * 50);
+
+// Notes in the diagnostics log when a page switch drew slowly (frames over 34 ms), to find stutter.
+function watchFrames(label: string, durationMs: number) {
+  let last = performance.now();
+  const end = last + durationMs;
+  let slow = 0;
+  let longest = 0;
+  const frame = (now: number) => {
+    const gap = now - last;
+    last = now;
+    if (gap > 34) {
+      slow++;
+      longest = Math.max(longest, gap);
+    }
+    if (now < end) requestAnimationFrame(frame);
+    else if (slow) logInfo('motion', `${label}: ${slow} slow frame(s), longest ${Math.round(longest)} ms`);
+  };
+  requestAnimationFrame(frame);
+}
+
 const pageParts = (page: Element) =>
   page.querySelectorAll(':scope > .page-header, :scope .card, :scope > .panel, :scope .settings-group, :scope .permission-row, :scope .help > *');
 
@@ -115,21 +137,35 @@ function rollText(el: HTMLElement, text: string) {
 // Navigation
 
 let currentPage: Page = 'home';
+// Update track ('stable', 'beta' or a version) and the published versions to choose from.
+let updateTrack = 'stable';
+let releaseList: { version: string; prerelease: boolean }[] = [];
 
 function showPage(page: Page) {
   for (const p of ['home', 'settings', 'permissions', 'news', 'help'] as const) $(`page-${p}`).hidden = p !== page;
-  if (page !== currentPage) animateIn(pageParts($(`page-${page}`)));
+  let settled = 0;
+  if (page !== currentPage) {
+    const parts = pageParts($(`page-${page}`));
+    animateIn(parts);
+    settled = settleTime(parts.length);
+    watchFrames(`page ${page}`, settled + 100);
+  }
   currentPage = page;
   for (const item of document.querySelectorAll<HTMLElement>('.nav-item')) {
     item.classList.toggle('active', item.dataset.nav === page);
   }
   if (page === 'settings') {
     fillSettingsForm();
-    renderHistory();
-    void renderLog();
+    // Building the history and the log is heavy; doing it mid-animation made the page stutter.
+    setTimeout(() => {
+      if (currentPage !== 'settings') return;
+      renderHistory();
+      void renderLog();
+    }, settled);
   }
   if (page === 'permissions') void refreshPermissions();
   if (page === 'help') renderHelp($('help-content'));
+  if (page === 'news') setTimeout(() => void loadReleases(), settled);
 }
 
 for (const el of document.querySelectorAll<HTMLElement>('[data-nav]')) {
@@ -484,12 +520,15 @@ function setStatus(text: string, isError = false, details = false) {
 
 const LEVEL_CLASS: Record<string, string> = { WARN: 'log-warn', ERROR: 'log-error' };
 
+// The newest lines only: thousands of rows make the page slow; Copy still copies everything.
+const LOG_VIEW_LINES = 400;
+
 async function renderLog() {
   const view = $('log-view');
   const text = await window.api.readLog();
   view.replaceChildren(
     ...(text
-      ? text.split('\n').map((line) => {
+      ? text.split('\n').slice(-LOG_VIEW_LINES).map((line) => {
           const row = document.createElement('div');
           row.textContent = line;
           const level = /^\S+ \S+ (WARN|ERROR)\b/.exec(line)?.[1];
@@ -975,6 +1014,7 @@ function renderUpdate() {
   const { status, version = '' } = updateState;
   const vars = { version, current: config.version };
   $('news-version').textContent = config.version;
+  renderTrack();
   $('update-status').textContent = t(`update.${status}` as MessageKey, vars);
   $('update-check').hidden = status === 'unsupported';
   const offered = updateOffered();
@@ -1037,15 +1077,50 @@ window.api.onUpdateState((state) => {
 });
 $('update-check').addEventListener('click', () => window.api.checkForUpdates());
 
-// Beta channel: try new versions early; turning it off goes back to the newest stable release.
-const betaBox = $<HTMLInputElement>('setting-beta');
-void window.api.getBetaChannel().then((on) => {
-  betaBox.checked = on;
-  $('beta-option').hidden = updateState.status === 'unsupported';
+// Which version to follow: newest stable, newest including betas, or one chosen version.
+const trackSelect = $<HTMLSelectElement>('update-track');
+enhanceSelect(trackSelect);
+
+function renderTrack() {
+  const trackSelect = $<HTMLSelectElement>('update-track');
+  $('update-track-row').hidden = updateState.status === 'unsupported';
+  const option = (value: string, text: string) => Object.assign(document.createElement('option'), { value, textContent: text });
+  // A chosen version that the list doesn't show (e.g. offline) still appears.
+  const pinned =
+    !['stable', 'beta'].includes(updateTrack) && !releaseList.some((r) => r.version === updateTrack)
+      ? [{ version: updateTrack, prerelease: updateTrack.includes('-') }]
+      : [];
+  trackSelect.replaceChildren(
+    option('stable', t('update.trackStable')),
+    option('beta', t('update.trackBeta')),
+    ...[...pinned, ...releaseList].map((r) =>
+      option(
+        r.version,
+        [r.version, r.prerelease && t('update.trackBetaTag'), r.version === config.version && t('update.trackInstalled')].filter(Boolean).join(' · '),
+      ),
+    ),
+  );
+  trackSelect.value = updateTrack;
+  refreshSelects();
+  $('update-track-hint').textContent = t(
+    updateTrack === 'stable' ? 'update.trackHintStable' : updateTrack === 'beta' ? 'update.trackHintBeta' : 'update.trackHintPinned',
+  );
+}
+
+async function loadReleases() {
+  releaseList = await window.api.listReleases();
+  renderTrack();
+}
+
+void window.api.getUpdateTrack().then((value) => {
+  updateTrack = value;
+  renderTrack();
 });
-betaBox.addEventListener('change', () => {
-  window.api.setBetaChannel(betaBox.checked);
-  logInfo('settings', `beta updates ${betaBox.checked ? 'on' : 'off'}`);
+trackSelect.addEventListener('change', () => {
+  updateTrack = trackSelect.value;
+  window.api.setUpdateTrack(updateTrack);
+  logInfo('settings', `update track: ${updateTrack}`);
+  renderTrack();
 });
 $('update-get').addEventListener('click', runUpdateAction);
 $('update-banner-action').addEventListener('click', () => void openWhatsNew('update'));

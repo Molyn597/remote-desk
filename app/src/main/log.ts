@@ -91,6 +91,22 @@ export function clearLog() {
   }
 }
 
+const GPU_VENDORS: Record<number, string> = { 0x10de: 'NVIDIA', 0x1002: 'AMD', 0x8086: 'Intel', 0x106b: 'Apple', 0x1414: 'Microsoft' };
+
+// Which graphics chip draws the app: on PCs with two (e.g. NVIDIA plus integrated), the wrong one stutters.
+export async function logGpu() {
+  try {
+    const info = (await app.getGPUInfo('basic')) as { gpuDevice?: { active?: boolean; vendorId?: number; deviceId?: number; driverVersion?: string }[] };
+    const devices = (info.gpuDevice ?? []).map(
+      (d) => `${GPU_VENDORS[d.vendorId ?? 0] ?? `vendor ${d.vendorId?.toString(16)}`}${d.driverVersion ? ` ${d.driverVersion}` : ''}${d.active ? ' (in use)' : ''}`,
+    );
+    const status = app.getGPUFeatureStatus();
+    log('info', 'gpu', `${devices.join(', ') || 'unknown'}; compositing ${status.gpu_compositing}, rasterization ${status.rasterization}`);
+  } catch (err) {
+    log('info', 'gpu', `unknown (${err instanceof Error ? err.message : err})`);
+  }
+}
+
 export function logStartup() {
   log('info', 'main', `Remote Desk ${app.getVersion()} on ${process.platform} ${os.release()} (${process.arch}), Electron ${process.versions.electron}, language ${app.getPreferredSystemLanguages()[0] ?? app.getLocale()}`);
   process.on('unhandledRejection', (reason) => log('error', 'main', `unhandled rejection: ${errorText(reason)}`));

@@ -115,8 +115,10 @@ export interface Api {
   getUpdateState(): Promise<UpdateState>;
   onUpdateState(handler: (state: UpdateState) => void): void;
   // Beta channel: also offer pre-releases; turning it off returns to the newest stable release.
-  getBetaChannel(): Promise<boolean>;
-  setBetaChannel(enabled: boolean): void;
+  // 'stable', 'beta' or one chosen version such as '0.1.19'.
+  getUpdateTrack(): Promise<string>;
+  setUpdateTrack(track: string): void;
+  listReleases(): Promise<{ version: string; prerelease: boolean; date: string }[]>;
   checkForUpdates(): void;
   installUpdate(): void;
   openDownloadPage(): void;

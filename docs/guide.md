@@ -68,9 +68,12 @@ the **Download update** / **Restart and update** button on the **What's new** pa
 Restarting installs it in place on both Windows and macOS. **Check now** looks for an update right
 away, and **What's new** shows the changes in each version.
 
-**Beta versions** (same page): turn it on to get new features early, before they are finished;
-they may contain bugs. Turning it off takes you back to the newest stable version, even if its
-number is lower.
+**Version** (same page) chooses what to install:
+- **Newest stable version** (recommended): updates to each new stable release.
+- **Newest version including betas**: new features early, before they are finished; they may contain bugs.
+- **A specific version**: installs exactly that one, older ones too (e.g. to go back after a problem).
+  Automatic updates then pause until you choose one of the newest options again. Going from a beta back
+  to the newest stable version works even if its number is lower.
 
 ## Let someone control this computer
 
