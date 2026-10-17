@@ -3,6 +3,18 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.5] - 2026-10-17
+
+Test version of the smoother control. Installed by beta testers; regular versions don't update to it.
+
+### Fixed
+
+- The remote mouse no longer stops for a second or two now and then. The controlled computer mistook its own delayed cursor for someone moving the mouse there and paused remote input, mostly with fast mice and high-refresh screens on the controlling side (a few hundred moves a second). This also kept switching off the privacy screen.
+
+### Added
+
+- The diagnostics log notes each time remote input is paused because someone moved the mouse at the controlled computer.
+
 ## [0.2.0-beta.4] - 2026-10-17
 
 Test version of the smoother picture. Installed by beta testers; regular versions don't update to it.

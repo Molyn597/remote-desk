@@ -1,6 +1,7 @@
 import robot from '@jitsi/robotjs';
 import type { Rectangle } from 'electron';
 import type { InputEvent, MouseButton } from '../../../shared/protocol';
+import { log } from './log';
 
 const BUTTONS = new Set<MouseButton>(['left', 'right', 'middle']);
 const MODIFIERS = new Set(['shift', 'control', 'alt', 'command']);
@@ -13,10 +14,14 @@ const CHAR_KEY = /^[a-z0-9`\-=[\]\\;',./]$/;
 
 const LOCAL_PRIORITY_MS = 1500;
 const LOCAL_POLL_MS = 100;
+// The system applies injected moves with a delay, so the cursor may still sit at any spot the
+// viewer sent a moment ago (a 240 Hz viewer sends a few hundred moves a second).
+const INJECTED_MEMORY_MS = 400;
+const INJECTED_TOLERANCE = 3;
 
 const pressed = new Set<MouseButton>();
 let viewerPlatform = '';
-let lastInjected: { x: number; y: number; at: number } | undefined;
+let injected: { x: number; y: number; at: number }[] = [];
 let localUntil = 0;
 let watchTimer: ReturnType<typeof setInterval> | undefined;
 let onLocalActivity: () => void = () => {};
@@ -42,7 +47,7 @@ function remapModifiers(mods: string[]): string[] {
 export function watchLocalMouse(enabled: boolean) {
   clearInterval(watchTimer);
   watchTimer = undefined;
-  lastInjected = undefined;
+  injected = [];
   localUntil = 0;
   if (!enabled) return;
   let last = robot.getMousePos();
@@ -51,11 +56,11 @@ export function watchLocalMouse(enabled: boolean) {
     const moved = Math.abs(pos.x - last.x) + Math.abs(pos.y - last.y) > 2;
     last = pos;
     if (!moved) return;
-    const remote =
-      lastInjected &&
-      Date.now() - lastInjected.at < 250 &&
-      Math.abs(pos.x - lastInjected.x) + Math.abs(pos.y - lastInjected.y) <= 2;
+    const now = Date.now();
+    injected = injected.filter((p) => now - p.at < INJECTED_MEMORY_MS);
+    const remote = injected.some((p) => Math.abs(pos.x - p.x) + Math.abs(pos.y - p.y) <= INJECTED_TOLERANCE);
     if (!remote) {
+      if (now >= localUntil) log('info', 'input', `local mouse moved: remote input paused for ${LOCAL_PRIORITY_MS / 1000} s`);
       localUntil = Date.now() + LOCAL_PRIORITY_MS;
       releaseButtons();
       onLocalActivity();
@@ -81,7 +86,8 @@ export function handleInput(ev: InputEvent) {
       // macOS only recognises drags from drag events, not plain moves.
       if (pressed.size) robot.dragMouse(x, y);
       else robot.moveMouse(x, y);
-      lastInjected = { x, y, at: Date.now() };
+      injected.push({ x, y, at: Date.now() });
+      if (injected.length > 500) injected.splice(0, injected.length - 500);
       return;
     }
     case 'button':
