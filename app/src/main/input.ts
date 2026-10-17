@@ -68,6 +68,17 @@ export function watchLocalMouse(enabled: boolean) {
   }, LOCAL_POLL_MS);
 }
 
+// macOS keeps a modifier from a synthetic shortcut "held" for every later event (typing turns
+// into shortcuts, clicks into Cmd+clicks) until that modifier's own key-up is posted.
+function tapKey(key: string, modifiers: string[]) {
+  robot.keyTap(key, modifiers);
+  if (process.platform === 'darwin') for (const m of modifiers) robot.keyToggle(m, 'up');
+}
+
+function releaseModifiers() {
+  if (process.platform === 'darwin') for (const m of MODIFIERS) robot.keyToggle(m, 'up');
+}
+
 function releaseButtons() {
   for (const button of pressed) robot.mouseToggle('up', button);
   pressed.clear();
@@ -105,12 +116,12 @@ export function handleInput(ev: InputEvent) {
       if (typeof ev.text === 'string' && ev.text.length <= 32) robot.typeString(ev.text);
       return;
     case 'key':
-      if (NAMED_KEYS.has(ev.key) || CHAR_KEY.test(ev.key)) robot.keyTap(ev.key, remapModifiers(ev.modifiers));
+      if (NAMED_KEYS.has(ev.key) || CHAR_KEY.test(ev.key)) tapKey(ev.key, remapModifiers(ev.modifiers));
       return;
     case 'combo': {
       if (!NAMED_KEYS.has(ev.key) && !CHAR_KEY.test(ev.key) && !MODIFIERS.has(ev.key)) return;
       const mods = (Array.isArray(ev.modifiers) ? ev.modifiers : []).filter((m) => MODIFIERS.has(m));
-      robot.keyTap(ev.key, mods);
+      tapKey(ev.key, mods);
       return;
     }
   }
@@ -128,6 +139,7 @@ export function setInputView(rect: Rectangle | undefined) {
 
 export function resetInput() {
   releaseButtons();
+  releaseModifiers();
   viewerPlatform = '';
   view = undefined;
 }

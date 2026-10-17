@@ -3,6 +3,14 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.6] - 2026-10-17
+
+Test version of the smoother control. Installed by beta testers; regular versions don't update to it.
+
+### Fixed
+
+- Controlling a Mac: after a shortcut such as Ctrl+C from Windows (Cmd+C on the Mac), the Mac behaved as if Cmd were still held. Typing turned into shortcuts with an alert sound, and clicks became Cmd+clicks (a click on a Dock icon opened the Applications folder). Modifier keys are now released after every shortcut and when a session ends.
+
 ## [0.2.0-beta.5] - 2026-10-17
 
 Test version of the smoother control. Installed by beta testers; regular versions don't update to it.
