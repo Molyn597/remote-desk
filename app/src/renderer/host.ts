@@ -596,9 +596,11 @@ export class Host {
     if (this.view === ALL_DISPLAYS) preset.maxWidth *= 2;
     // The computer can't encode 60 fps in time: ask for 30 so frames keep coming evenly.
     if (this.cpuLimited && this.quality === 'auto') preset.fps = 30;
-    // One monitor: have the system capture it already scaled down (on the graphics chip), so a
-    // Retina or 4K screen isn't captured at full size only to be shrunk again before encoding.
-    if (this.view !== ALL_DISPLAYS) {
+    // One monitor on a Mac: have the system capture it already scaled down (on the graphics chip),
+    // so a Retina screen isn't captured at full size only to be shrunk again before encoding.
+    // Windows capture breaks when resized this way (a distorted size at ~2 fps), so there the
+    // encoder scales the picture instead.
+    if (this.view !== ALL_DISPLAYS && this.platform === 'darwin') {
       const limit = Number.isFinite(preset.maxWidth) ? { width: { max: preset.maxWidth }, height: { max: preset.maxWidth } } : {};
       // Capture no more frames than the mode sends.
       await track.applyConstraints({ ...limit, frameRate: { ideal: preset.fps, max: preset.fps } }).catch((err) => logInfo('host', `capture size not limited: ${err}`));

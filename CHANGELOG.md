@@ -3,6 +3,14 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.7] - 2026-10-17
+
+Test version of the smoother picture. Installed by beta testers; regular versions don't update to it.
+
+### Fixed
+
+- Black screen when controlling a Windows computer (since 0.2.0-beta.3): its screen was captured at a reduced size, which Windows capture doesn't handle (a distorted picture at about 2 frames per second). Only Macs capture at the reduced size now; on Windows the encoder scales the picture as before.
+
 ## [0.2.0-beta.6] - 2026-10-17
 
 Test version of the smoother control. Installed by beta testers; regular versions don't update to it.
