@@ -306,6 +306,9 @@ chybové hlášky.
 - Zkontrolujte tlačítko s reproduktorem v liště.
 - Ovládaný Mac potřebuje pro zvuk macOS 14.2 nebo novější a povolené nahrávání zvuku systému.
   V Diagnostice je „sharing system sound“, nebo „system sound not available“.
+- Tečka na tlačítku s reproduktorem znamená, že vzdálený počítač zvuk sdílet nemůže. Na Windows se to
+  stává, když má zvukový výstup nastavený prostorový zvuk (např. 7.1 u herních sluchátek): přepněte
+  tento výstup na stereo (Nastavení zvuku nebo aplikace sluchátek), nebo použijte jiné reproduktory.
 
 **Na Macu je černá obrazovka nebo nejde ovládat**
 - Ovládaný Mac potřebuje Záznam obrazovky a Zpřístupnění (stránka **Oprávnění**) a po jejich povolení

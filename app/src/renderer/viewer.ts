@@ -59,6 +59,8 @@ export interface ViewerSession {
   // Privacy screen on the host (black monitors there): available, and on right now.
   privacyAvailable: boolean;
   privacy: boolean;
+  // False when the host said its sound can't be shared; undefined from older versions.
+  sound?: boolean;
   onPrivacyChange?: (on: boolean) => void;
   onControlChange?: (canControl: boolean) => void;
   sendInput(ev: InputEvent): void;
@@ -273,6 +275,7 @@ export class Viewer {
         canControl: data.control !== false,
         privacyAvailable: data.privacy === true,
         privacy: false,
+        sound: typeof data.sound === 'boolean' ? data.sound : undefined,
         screen: validScreen(data.screen),
         sendInput: (ev) => void input.send(ev, { target: peerId }),
         sendControl: (c) => void control.send(c, { target: peerId }),

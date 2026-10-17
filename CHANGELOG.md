@@ -3,6 +3,18 @@
 Each release has a `## [version] - date` heading. The app shows these notes in
 "What's new", and the release workflow uses them as the GitHub release notes.
 
+## [0.2.0-beta.9] - 2026-10-17
+
+Test version. Installed by beta testers; regular versions don't update to it.
+
+### Fixed
+
+- The Version list on the What's new page appeared twice.
+
+### Changed
+
+- When the remote computer can't share its sound, the speaker button in the session toolbar shows a dot and explains why. On Windows this happens when the sound output is set to surround sound (e.g. 7.1 on gaming headphones); switching it to stereo or using other speakers fixes it.
+
 ## [0.2.0-beta.8] - 2026-10-17
 
 Test version. Installed by beta testers; regular versions don't update to it.

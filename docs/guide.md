@@ -309,6 +309,9 @@ error message opens it.
 - Check the speaker button in the toolbar.
 - On a controlled Mac, sound needs macOS 14.2 or later and the system audio permission. The
   diagnostics log says "sharing system sound" or "system sound not available".
+- A dot on the speaker button means the remote computer can't share its sound. On Windows this
+  happens when its sound output is set to surround sound (e.g. 7.1 on gaming headphones): switch that
+  output to stereo (Sound settings, or the headphone software) or use other speakers.
 
 **On a Mac the screen is black or control doesn't work**
 - The controlled Mac needs Screen Recording and Accessibility (the **Permissions** page), and the app

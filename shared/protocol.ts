@@ -20,6 +20,8 @@ export type Answer = {
   // The viewer may black out the host's monitors (favorite, allowed by the host, Windows).
   privacy?: boolean;
   screen?: { width: number; height: number };
+  // false: the host's sound can't be shared (e.g. its output is set to 7.1 surround).
+  sound?: boolean;
 };
 
 // Host -> viewer: whether remote input is currently accepted (view-only or paused by the host).

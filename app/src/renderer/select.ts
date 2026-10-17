@@ -5,6 +5,7 @@ const refreshers = new Set<() => void>();
 const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>';
 
 export function enhanceSelect(select: HTMLSelectElement) {
+  if (select.closest('.select')) return; // already enhanced
   const wrapper = document.createElement('div');
   wrapper.className = 'select';
   const button = document.createElement('button');

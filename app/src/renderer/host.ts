@@ -548,7 +548,7 @@ export class Host {
     logInfo('host', `session started (${canControl ? 'control' : 'view only'}${trusted ? ', trusted' : ''}, ${this.displays.length} monitor(s), ${screen.width}×${screen.height})`);
     watchConnection('host', link.room.getPeers()[peerId]);
     this.privacy = false;
-    link.send.answer({ accepted: true, control: canControl, screen, privacy: this.privacyAvailable() }, peerId);
+    link.send.answer({ accepted: true, control: canControl, screen, privacy: this.privacyAvailable(), sound: Boolean(this.audio) }, peerId);
     link.send.layout({ displays: this.displays, view: this.view, screen }, peerId);
     // A verified trusted device gets the key to come back without the password.
     if (trusted) link.send.pair({ secret: loadTrustSecret() }, peerId);

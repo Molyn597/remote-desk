@@ -537,9 +537,11 @@ export function attachToolbar(session: ViewerSession, options: ToolbarOptions): 
   // Remote sound: play it here or mute it. Muting only affects this computer.
   const renderAudio = () => {
     const on = !video.muted;
-    $('tool-audio').classList.toggle('muted', !on);
-    $('tool-audio').title = t(on ? 'toolbar.mute' : 'toolbar.unmute');
+    $('tool-audio').classList.toggle('muted', !on || session.sound === false);
+    $('tool-audio').classList.toggle('badge', session.sound === false);
+    $('tool-audio').title = session.sound === false ? t('toolbar.soundUnavailable') : t(on ? 'toolbar.mute' : 'toolbar.unmute');
   };
+  if (session.sound === false) logInfo('viewer', 'the remote computer can not share its sound');
   video.muted = !options.audio;
   onClick('tool-audio', () => {
     video.muted = !video.muted;

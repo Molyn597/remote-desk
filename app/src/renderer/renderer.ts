@@ -1079,7 +1079,6 @@ $('update-check').addEventListener('click', () => window.api.checkForUpdates());
 
 // Which version to follow: newest stable, newest including betas, or one chosen version.
 const trackSelect = $<HTMLSelectElement>('update-track');
-enhanceSelect(trackSelect);
 
 function renderTrack() {
   const trackSelect = $<HTMLSelectElement>('update-track');

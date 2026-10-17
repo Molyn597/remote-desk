@@ -31,7 +31,9 @@ export async function captureAudio(): Promise<MediaStreamTrack | undefined> {
     if (!track) logInfo('host', 'system sound: the system returned no audio track');
     return track;
   } catch (err) {
-    logInfo('host', `system sound unavailable: ${err instanceof Error ? `${err.name}: ${err.message}` : err}`);
+    // On Windows this usually means the default output runs as surround sound (e.g. 7.1 headphones).
+    const hint = err instanceof Error && err.name === 'NotReadableError' ? ' (often a sound output set to surround/7.1)' : '';
+    logInfo('host', `system sound unavailable: ${err instanceof Error ? `${err.name}: ${err.message}` : err}${hint}`);
     return undefined;
   }
 }
